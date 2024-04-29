@@ -28,34 +28,29 @@ dat_FLH<-dat_FLH[-c(2,3),] # leaves reference row in there
 perc_height<-dat_FLH%>%dplyr::select(c(1:6, starts_with('perc'))) # selects first 6 cols with sp info then finds variable header word
 names(perc_height)<-perc_height[1,];perc_height<-perc_height[-1,] # removes selection of variable name row...and sets with reference name
 
-# takes from matrix format into Long format for calculating weighted mean --- NOT NEEDED?
-perc_height_long<-NULL 
-for(i in 1:nrow(perc_height))
-{
-  perc_height_long<-rbind(perc_height_long, data.frame(sp=perc_height[i,]$`Common name`,
-  str_split_fixed(perc_height[i,7:ncol(perc_height)], "@", 3))) 
-}
+#number of studies per genus
+n_studies<-perc_height%>%group_by(`Genus common`)%>%summarise_all(funs(sum(!is.na(.))))
+n_studies[,7:ncol(n_studies)][n_studies[,7:ncol(n_studies)]>0]<-1 # replace n with 1 to sum
+n_stud_df<-data.frame(n_studies[,1:2], n_studies=rowSums(n_studies[,7:16]))
 
+# calculate weighted mean based on three categories. Pool for RSZ height (>10, >20, >30)
 wt_mn<-function(x){
-  t1<-str_split_fixed(x[7:ncol(perc_height)], "@", 2)%>%as.data.frame()
+  t1<-str_split_fixed(x[7:ncol(perc_height)], "@", 3)%>%as.data.frame()
   t1$V2<-str_replace_all(t1$V2,c(L="0.33", M="0.66", H="1"))
   t1<-t1 %>% mutate_if(is.character,as.numeric)
   return(weighted.mean(t1$V1, t1$V2, na.rm=T))}
 
 perc_height$ave_perc<-apply(perc_height, 1, FUN=wt_mn)
 
-
-n_studies<-perc_height%>%group_by(`Genus common`)%>%summarise_all(funs(sum(!is.na(.))))
-
-n_studies[,7:16][n_studies[,7:16]>0]<-1 # replace n with 1 to sum
-
-n_stud_df<-data.frame(n_studies[,1:2], n_studies=rowSums(n_studies[,7:16]))
-
+#make genus level average
 mn_mean<-perc_height%>%group_by(`Genus common`)%>%summarise(mnmn_perc=mean(ave_perc, na.rm=T))
 
+
+#order by decreasing risk
 perc_height$`Genus common`<-factor(perc_height$`Genus common`, levels=mn_mean[order(mn_mean$mnmn_perc, decreasing =T),] $ `Genus common`)
 mn_mean$`Genus common`<-factor(mn_mean$`Genus common`, levels=mn_mean[order(mn_mean$mnmn_perc, decreasing =T),] $ `Genus common`)
 
+#Species + genus averaged plot
 
 ggplot()+
   geom_jitter(data=perc_height, aes(x=`Genus common`, y=ave_perc), height=0, width=0.15, alpha=0.3, size=2)+
@@ -66,7 +61,34 @@ ggplot()+
   theme(axis.text=element_text(size=14),
         axis.title=element_text(size=14,face="bold"),
         axis.title.x = element_blank())
-  
+
+# Species plot to present reasoning for pooling RSZ heights: basically lots of error. Could test with stats if needed
+
+perc_height_nona<-perc_height[-which(is.na(perc_height$ave_perc)),] #remove NA species
+perc_height_nona$ave_perc<-NULL #remove ave column
+
+perc_height_long<-NULL 
+for(i in 1:nrow(perc_height))
+{
+  perc_height_long<-rbind(perc_height_long, data.frame(sp=perc_height_nona[i,]$`Common name`, gen=perc_height_nona[i,]$`Genus common`,
+                                                       str_split_fixed(perc_height_nona[i,7:ncol(perc_height_nona)], "@", 3))) 
+}
+
+perc_height_long<-na.omit(perc_height_long) # rm NAs
+perc_height_long$X1<-as.numeric(perc_height_long$X1) # convert to numeric
+
+perc_height_long$gen<-factor(perc_height_long$gen, levels=mn_mean[order(mn_mean$mnmn_perc, decreasing =T),] $ `Genus common`)
+perc_height_long$sp<-factor(perc_height_long$sp, levels=unique(perc_height_long[order(perc_height_long$gen),] $ sp))
+perc_height_long$X2<-factor(perc_height_long$X2, levels=c("L", "M", "H"))
+
+# one STSH outlier at 50 removed
+ggplot()+
+  geom_point(data=perc_height_long[perc_height_long$X1<26,], aes(x=sp, y=X1, colour=X3, size=X2), shape=1)+
+  labs(y="Percent time in Rotor Swept Zone")+theme_bw()+
+  scale_size_discrete(name = "Study\nconfidence")+
+scale_colour_discrete(name = "Minimum height\nof RSZ (m)")+
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+
   
 
 ## FLIGHT HEIGHT

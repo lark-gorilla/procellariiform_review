@@ -12,17 +12,30 @@ setwd("C:/Users/mmil0049/OneDrive - Monash University/projects/01 southern seabi
 
 # make duplicate detector or maybe just print studies next to each other per species for manual checking
 
-#read in data and formatting
+#### *** Read in data and formatting *** ####
 
 #flight height sheet
 dat_FLH<-read_xlsx('C:/Users/mmil0049/Downloads/procellariiform_OWF_review_FORMATTED (3).xlsx', sheet='flight.height', skip=1) # skip top 'checking' row
-which(is.na(dat_FLH[,1]))
-dat_FLH<-dat_FLH[-which(is.na(dat_FLH[,1])),] # remove NA row normally.. at end
 
 height_meta<-data.frame(ref=paste(dat_FLH[1,7:ncol(dat_FLH)]), str_split_fixed(dat_FLH[3,7:ncol(dat_FLH)], "@", 5))
 names(height_meta)[2:6]=c("data.type", "place", "country", "marine region", "stage")
 
 dat_FLH<-dat_FLH[-c(2,3),] # leaves reference row in there
+which(is.na(dat_FLH[,1]))
+dat_FLH<-dat_FLH[-which(is.na(dat_FLH[,1])),] # remove NA row normally.. at end
+
+
+#flight speed sheet
+dat_FSD<-read_xlsx('C:/Users/mmil0049/Downloads/procellariiform_OWF_review_FORMATTED (3).xlsx', sheet='flight.speed', skip=1) # skip top 'checking' row
+
+speed_meta<-data.frame(ref=paste(dat_FSD[1,7:ncol(dat_FSD)]), str_split_fixed(dat_FSD[3,7:ncol(dat_FSD)], "@", 5))
+names(speed_meta)[2:6]=c("data.type", "place", "country", "marine region", "stage")
+
+dat_FSD<-dat_FSD[-c(2,3),] # leaves reference row in there
+which(is.na(dat_FSD[,1]))
+dat_FSD<-dat_FSD[-which(is.na(dat_FSD[,1])),] # remove NA row normally.. at end
+
+#### ***  *** ####
 
 #### *** Flight height review *** ####
 

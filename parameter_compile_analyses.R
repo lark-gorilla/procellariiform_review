@@ -32,8 +32,6 @@ speed_meta<-data.frame(ref=paste(dat_FSD[1,7:ncol(dat_FSD)]), str_split_fixed(da
 names(speed_meta)[2:6]=c("data.type", "place", "country", "marine region", "stage")
 
 dat_FSD<-dat_FSD[-c(2,3),] # leaves reference row in there
-which(is.na(dat_FSD[,1]))
-dat_FSD<-dat_FSD[-which(is.na(dat_FSD[,1])),] # remove NA row normally.. at end
 
 #### ***  *** ####
 
@@ -159,3 +157,54 @@ ggplot()+
 #### ***  *** ####
 
 #### *** Flight speed review *** ####
+
+## FLIGHT HEIGHT ##
+
+# run per species
+# use random effects model making each study@stage a separate slab BUT using study as the random effect grouping level.
+
+fl_speed<-dat_FSD%>%dplyr::select(c(1:6, starts_with('flight')))
+names(fl_speed)<-fl_speed[1,];fl_speed<-fl_speed[-1,]
+
+
+meta_split<-function(x)
+  {
+  t1<-unlist(str_split(x, "@"))
+  if(length(t1)==5)
+    {
+    t2<-as.data.frame(as.list(c('Combined', t1)), col.names=(c('V1', "V2", "V3", "V4", "V5", "V6")))
+    }else{
+    t2<-do.call("rbind", (split(t1, ceiling(1:length(t1)/6))))%>%as.data.frame()
+    }
+  return(t2)
+  }
+ 
+long_speed<-NULL
+for(i in 1:nrow(fl_speed))
+{
+  fl_speed_temp<-fl_speed[,7:ncol(fl_speed)]
+  sel_sp<-fl_speed_temp[i,which(!is.na(fl_speed_temp[i,]))]
+  if(length(sel_sp)==0){next} # skip sp with no data
+  temp<-do.call("rbind", apply(sel_sp, 2, FUN=meta_split))
+  temp<-data.frame(sp=fl_speed[i,]$`Common name`, study=row.names(temp), temp)
+  long_speed<-rbind(long_speed, temp)
+}
+ 
+row.names(long_speed)<-NULL 
+  
+
+
+
+
+
+
+  
+  t1$V2<-str_replace_all(t1$V2,c(L="0.33", M="0.66", H="1"))
+  t1<-t1 %>% mutate_if(is.character,as.numeric)
+  return(weighted.mean(t1$V1, t1$V2, na.rm=T))}
+
+fl_height$ave_fl_height<-apply(fl_height, 1, FUN=wt_mn)
+
+sel_sp<-fl_speed[i,]
+
+

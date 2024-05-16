@@ -18,7 +18,7 @@ setwd("C:/Users/mmil0049/OneDrive - Monash University/projects/01 southern seabi
 #### *** Read in data and formatting *** ####
 
 #flight height sheet
-dat_FLH<-read_xlsx('C:/Users/mmil0049/Downloads/procellariiform_OWF_review_FORMATTED (9).xlsx', sheet='flight.height', skip=1) # skip top 'checking' row
+dat_FLH<-read_xlsx('C:/Users/mmil0049/Downloads/procellariiform_OWF_review_FORMATTED (12).xlsx', sheet='flight.height', skip=1) # skip top 'checking' row
 
 height_meta<-data.frame(ref=paste(dat_FLH[1,7:ncol(dat_FLH)]), str_split_fixed(dat_FLH[3,7:ncol(dat_FLH)], "@", 5))
 names(height_meta)[2:6]=c("data.type", "place", "country", "marine region", "stage")
@@ -29,7 +29,7 @@ dat_FLH<-dat_FLH[-which(is.na(dat_FLH[,1])),] # remove NA row normally.. at end
 
 
 #flight speed sheet
-dat_FSD<-read_xlsx('C:/Users/mmil0049/Downloads/procellariiform_OWF_review_FORMATTED (9).xlsx', sheet='flight.speed', skip=1) # skip top 'checking' row
+dat_FSD<-read_xlsx('C:/Users/mmil0049/Downloads/procellariiform_OWF_review_FORMATTED (12).xlsx', sheet='flight.speed', skip=1) # skip top 'checking' row
 
 speed_meta<-data.frame(ref=paste(dat_FSD[1,7:ncol(dat_FSD)]), str_split_fixed(dat_FSD[3,7:ncol(dat_FSD)], "@", 5))
 names(speed_meta)[2:6]=c("data.type", "place", "country", "marine region", "stage")
@@ -216,8 +216,8 @@ for(i in 1:nrow(max_speed))
 
 row.names(long_max)<-NULL 
 
-long_max[long_max$V3==99,]$V3<-0 # set max with no sd (max max)to zero as few species where this is an issue
-
+# set missing "99s" to zero SDs for Max speed
+long_max[long_max$V3==99,]$V3<-0 
 
 ## TRIP SPEED ##
 
@@ -277,6 +277,30 @@ speed_ready<-speed_ready%>%arrange("varib", "study")
 
 speed_ready<-left_join(speed_ready, speed_meta, by=c("study"="ref"), multiple='first') # join in meta data
 
+# Imputing missing SDs for Max speed
+# split out max from main dataset
+
+sp_rd_1<-speed_ready[speed_ready$varib!="max",]
+sp_rd_2<-speed_ready[speed_ready$varib=="max",]
+
+ds_mean_sd<-mean(sp_rd_2[sp_rd_2$sd>0,]$sd, na.rm=T)# get average sd acroass whole max dataset
+#3.2665
+
+sp_rd_3<-NULL
+for(i in unique(sp_rd_2$sp))
+{
+  l_temp<-sp_rd_2[sp_rd_2$sp==i,]
+  if(prod(l_temp$sd)!=0){sp_rd_3<-rbind(sp_rd_3, l_temp)
+  next()}
+  if(sum(l_temp$sd)==0){
+    l_temp$sd<-ds_mean_sd
+    sp_rd_3<-rbind(sp_rd_3, l_temp)}else{
+      l_temp[l_temp$sd==0,]$sd<-mean(l_temp[l_temp$sd>0,]$sd, na.rm=T)  
+      sp_rd_3<-rbind(sp_rd_3, l_temp)}
+}
+ 
+speed_ready<-rbind(sp_rd_1, sp_rd_3) 
+
 #write_xlsx(speed_ready,"analyses/speed_ready.xlsx")
       
 #### ***  *** ####
@@ -286,31 +310,44 @@ speed_ready<-left_join(speed_ready, speed_meta, by=c("study"="ref"), multiple='f
 # run per species
 # use random effects model making each study@stage a separate slab BUT using study as the random effect grouping level.
 
+# read in prepped data
+speed_ready<-read_excel("analyses/speed_ready.xlsx")
 
-# trial
-
-# apply function to fill NA mean and sd columns from median, min and max
-
-
-
-for(j in unique(long_trip$sp))
+speed_meta_out<-NULL
+for(i in unique(speed_ready$varib))
 {
-  temp1<-long_trip[long_trip$sp==j,]
-  
-  m.mean <- metamean(n = as.numeric(V6),
-                     mean = as.numeric(V2),
-                     sd = as.numeric(V3),
-                     studlab = study,
-                     cluster=study,
-                     data = temp1,
-                     sm = "MLN", # use log transformation instead. Probably, advisable when using non-negative data
-                     fixed = FALSE,
-                     random = TRUE,
-                     method.tau = "REML",
-                     title = paste(i, "Scores"))
-  print(summary(m.mean))
+  var1<-speed_ready[speed_ready$varib==i,]
+  for(j in unique(var1$sp))
+  {
+    out_temp<-NULL
+    sp_var<-var1[var1$sp==j,]
+    if(nrow(sp_var)==1){
+      out_temp<-data.frame(sp_var[1,1:2],sp_var[1,5], LCI=NA, UCI=NA, sp_var[1,6:7] )}else{
+    
+    m.mean <- metamean(n = n,
+                       mean = mean,
+                       sd = sd,
+                       studlab = study,
+                       cluster=study,
+                       data = sp_var,
+                       sm = "MLN", # use log transformation instead. Probably, advisable when using non-negative data
+                       fixed = FALSE,
+                       random = TRUE,
+                       method.tau = "REML",
+                       title = paste(i, "Scores"))
+    
+    #print(summary(m.mean))
+    print(paste(i, j))
+    print(forest(m.mean))
+    readline("")
+    
+    out_temp<-data.frame(sp_var[1,1:2],mean=exp(m.mean$TE.random), LCI=exp(m.mean$lower.random), UCI=exp(m.mean$upper.random), sd=NA, n=sum(m.mean$n)) 
+    }
+    speed_meta_out<-rbind(speed_meta_out, out_temp)
+  }
 }
 
+escalc(measure='MNLN', mi=mean, sdi=sd, ni=n, data=sp_var, slab=study)
 
 
 ## FLIGHT SPEED ##

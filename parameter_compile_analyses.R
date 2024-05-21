@@ -3,6 +3,7 @@
 library(readxl)
 library(writexl)
 library(dplyr)
+library(tidyr)
 library(stringr)
 library(ggplot2)
 library(ggrepel)
@@ -40,6 +41,16 @@ dat_FSD<-dat_FSD[-c(2,3),] # leaves reference row in there
 
 #### *** Flight height review *** ####
 
+#Funtion: n studies, split per confidence class for meta
+n_conf<-function(x){
+  t1<-str_split_fixed(x[7:ncol(perc_height)], "@", 3)%>%as.data.frame()
+  t2<-count(t1, V2)
+  t3<-data.frame(n_H=0, n_M=0, n_L=0)
+  if(length(t2[t2$V2=='H',]$n)>0){t3$n_H<-t2[t2$V2=='H',]$n}
+  if(length(t2[t2$V2=='M',]$n)>0){t3$n_M<-t2[t2$V2=='M',]$n}
+  if(length(t2[t2$V2=='L',]$n)>0){t3$n_L<-t2[t2$V2=='L',]$n}
+  return(t3)}
+
 ## PERC RSZ ##
 
 perc_height<-dat_FLH%>%dplyr::select(c(1:6, starts_with('perc'))) # selects first 6 cols with sp info then finds variable header word
@@ -50,23 +61,66 @@ wt_mn<-function(x){
   t1<-str_split_fixed(x[7:ncol(perc_height)], "@", 3)%>%as.data.frame()
   t1$V2<-str_replace_all(t1$V2,c(L="0.33", M="0.66", H="1"))
   t1<-t1 %>% mutate_if(is.character,as.numeric)
-  return(weighted.mean(t1$V1, t1$V2, na.rm=T))}
+  return(data.frame(wt_ave=weighted.mean(t1$V1, t1$V2, na.rm=T),
+                    min=min(t1$V1, na.rm=T), max=max(t1$V1, na.rm=T)))}
 
-#n studies, split per confidence class for meta
-n_conf<-function(x){
-  t1<-str_split_fixed(x[7:ncol(perc_height)], "@", 3)%>%as.data.frame()
-  t2<-count(t1, V2)
-  t3<-data.frame(n_H=0, n_M=0, n_L=0)
-  if(length(t2[t2$V2=='H',]$n)>0){t3$n_H<-t2[t2$V2=='H',]$n}
-  if(length(t2[t2$V2=='M',]$n)>0){t3$n_M<-t2[t2$V2=='M',]$n}
-  if(length(t2[t2$V2=='L',]$n)>0){t3$n_L<-t2[t2$V2=='L',]$n}
-  return(t3)}
+perc_height_out<-data.frame(varib="percRSZ", `Common name`=perc_height$`Common name`,
+                   do.call("rbind", apply(perc_height, 1, FUN=wt_mn)),
+                   do.call("rbind", apply(perc_height, 1, FUN=n_conf)))
 
-perc_height$ave_perc<-apply(perc_height, 1, FUN=wt_mn)
 
-perc_height<-cbind(perc_height, do.call("rbind", apply(perc_height, 1, FUN=n_conf)))
+  
+## FLIGHT HEIGHT ##
 
-# Plots
+fl_height<-dat_FLH%>%dplyr::select(c(1:6, starts_with('mean')))
+names(fl_height)<-fl_height[1,];fl_height<-fl_height[-1,]
+
+wt_mn<-function(x){
+  t1<-str_split_fixed(x[7:ncol(fl_height)], "@", 2)%>%as.data.frame()
+  t1$V2<-str_replace_all(t1$V2,c(L="0.33", M="0.66", H="1"))
+  t1<-t1 %>% mutate_if(is.character,as.numeric)
+  return(data.frame(wt_ave=weighted.mean(t1$V1, t1$V2, na.rm=T),
+                    min=min(t1$V1, na.rm=T), max=max(t1$V1, na.rm=T)))}
+
+fl_height_out<-data.frame(varib="height", `Common name`=fl_height$`Common name`,
+                   do.call("rbind", apply(fl_height, 1, FUN=wt_mn)),
+                   do.call("rbind", apply(fl_height, 1, FUN=n_conf)))
+
+#combine results
+
+ht_res_out<-rbind(perc_height_out, fl_height_out)
+ht_res_out<-ht_res_out%>%filter(!is.na(wt_ave))
+
+ht_res_out$min<-ifelse(ht_res_out$min==ht_res_out$wt_ave, NA, ht_res_out$min)
+ht_res_out$max<-ifelse(ht_res_out$max==ht_res_out$wt_ave, NA, ht_res_out$max)
+
+#combine studies for appendix
+app_p<-perc_height[,c(2, 7:16)]%>%pivot_longer(!"Common name", names_to='study', values_to = 'perc_rsz', values_drop_na = T)
+app_p<-data.frame(varib="percRSZ", app_p, str_split_fixed(app_p$perc_rsz, "@", 3))
+
+app_f<-fl_height[,c(2, 7:13)]%>%pivot_longer(!"Common name", names_to='study', values_to = 'fl_ht', values_drop_na = T)
+app_f<-data.frame(varib="height", app_f, str_split_fixed(app_f$fl_ht, "@", 2), X3=NA)
+
+app_height_out<-rbind(app_p[c("varib", "Common.name", "study", "X1", "X2", "X3")],
+                      app_f[c("varib", "Common.name", "study", "X1", "X2", "X3")])
+
+
+app_height_out<-app_height_out%>%arrange("varib", "study")
+
+app_height_out<-left_join(app_height_out, height_meta, by=c("study"="ref"), multiple='first') # join in meta data
+
+## WRITE OUT TABLES ##
+#write_xlsx(app_height_out, "analyses/height_ready.xlsx")
+#write_xlsx(ht_res_out, "outputs/height_results.xlsx")
+
+#OLD
+#write_xlsx(height_meta, "outputs/height_meta.xlsx")
+#write_xlsx(perc_height, "outputs/height_perc.xlsx")
+#write_xlsx(fl_height, "outputs/height_absl.xlsx")
+
+#### ---- Plots  ---- ####
+
+#Plots PERC RSZ
 
 #make genus level average
 mn_mean<-perc_height%>%group_by(`Genus common`)%>%summarise(mnmn_perc=mean(ave_perc, na.rm=T))
@@ -111,26 +165,10 @@ ggplot()+
   geom_point(data=perc_height_long[perc_height_long$X1<26,], aes(x=sp, y=X1, colour=X3, size=X2), shape=1)+
   labs(y="Percent time in Rotor Swept Zone")+theme_bw()+
   scale_size_discrete(name = "Study\nconfidence")+
-scale_colour_discrete(name = "Minimum height\nof RSZ (m)")+
+  scale_colour_discrete(name = "Minimum height\nof RSZ (m)")+
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
 
-  
-## FLIGHT HEIGHT ##
-
-fl_height<-dat_FLH%>%dplyr::select(c(1:6, starts_with('mean')))
-names(fl_height)<-fl_height[1,];fl_height<-fl_height[-1,]
-
-wt_mn<-function(x){
-  t1<-str_split_fixed(x[7:ncol(fl_height)], "@", 2)%>%as.data.frame()
-  t1$V2<-str_replace_all(t1$V2,c(L="0.33", M="0.66", H="1"))
-  t1<-t1 %>% mutate_if(is.character,as.numeric)
-  return(weighted.mean(t1$V1, t1$V2, na.rm=T))}
-
-fl_height$ave_fl_height<-apply(fl_height, 1, FUN=wt_mn)
-
-fl_height<-cbind(fl_height, do.call("rbind", apply(fl_height, 1, FUN=n_conf)))
-
-#Plots
+#Plots - FLIGHT HIEGHT
 
 fl_height_nona<-fl_height[-which(is.na(fl_height$ave_fl_height)),]
 
@@ -150,12 +188,7 @@ ggplot()+
         axis.text.x = element_blank(),
         legend.position = c(0.9, 0.8), 
         legend.text = element_text(size=12))
-
-## WRITE OUT TABLES ##
-
-#write_xlsx(height_meta, "outputs/height_meta.xlsx")
-#write_xlsx(perc_height, "outputs/height_perc.xlsx")
-#write_xlsx(fl_height, "outputs/height_absl.xlsx")
+#### ---- Plots End  ---- ####
 
 #### ***  *** ####
 
@@ -322,7 +355,9 @@ for(i in unique(speed_ready$varib))
     out_temp<-NULL
     sp_var<-var1[var1$sp==j,]
     if(nrow(sp_var)==1){
-      out_temp<-data.frame(sp_var[1,1:2],sp_var[1,5], LCI=NA, UCI=NA, sp_var[1,6:7] )}else{
+      out_temp<-data.frame(sp_var[1,1:2],sp_var[1,5], LCI=NA, UCI=NA, sp_var[1,6:7],
+                           n_studies= length(unique(sp_var$study)), stage=paste(unique(sp_var$stage), collapse=", "),
+                           region=paste(unique(sp_var$`marine region`), collapse=", "))}else{
     
     m.mean <- metamean(n = n,
                        mean = mean,
@@ -337,34 +372,23 @@ for(i in unique(speed_ready$varib))
                        title = paste(i, "Scores"))
     
     #print(summary(m.mean))
-    print(paste(i, j))
-    print(forest(m.mean))
-    readline("")
+    #print(paste(i, j))
+    #print(forest(m.mean))
+    #readline("")
     
-    out_temp<-data.frame(sp_var[1,1:2],mean=exp(m.mean$TE.random), LCI=exp(m.mean$lower.random), UCI=exp(m.mean$upper.random), sd=NA, n=sum(m.mean$n)) 
+    out_temp<-data.frame(sp_var[1,1:2],mean=exp(m.mean$TE.random), LCI=exp(m.mean$lower.random), UCI=exp(m.mean$upper.random), sd=NA, n=sum(m.mean$n), 
+                         n_studies= length(unique(sp_var$study)), stage=paste(unique(sp_var$stage), collapse=", "), region=paste(unique(sp_var$`marine region`), collapse=", "))
     }
     speed_meta_out<-rbind(speed_meta_out, out_temp)
   }
 }
 
-escalc(measure='MNLN', mi=mean, sdi=sd, ni=n, data=sp_var, slab=study)
 
 
-## FLIGHT SPEED ##
-
-
-
-## MAX SPEED ##
+#escalc(measure='MNLN', mi=mean, sdi=sd, ni=n, data=sp_var, slab=study)
 
 
 
-## TRIP SPEED ##
-
-row.names(long_trip)<-NULL 
-
-#export dataset to check sample sizes for calculating mean and sd from median and min/max
-#write_xlsx(rbind(data.frame(varib="max", long_max[long_max$V3=="NA",]),data.frame(varib="trip", long_trip[long_trip$V3=="NA",]),
-#data.frame(varib="speed", long_speed[long_speed$V3=="NA",])),"analyses/median_ss_checking.xlsx")
 
 #### ***  *** ####
 

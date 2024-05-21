@@ -111,7 +111,15 @@ app_height_out<-left_join(app_height_out, height_meta, by=c("study"="ref"), mult
 
 ## WRITE OUT TABLES ##
 #write_xlsx(app_height_out, "analyses/height_ready.xlsx")
+
+# add extra attribs to resutls
+ht_res_out<-left_join(ht_res_out, 
+                      app_height_out%>%group_by(varib, Common.name)%>%summarise(stage=paste(unique(stage),
+                      collapse=", "), region=paste(unique(`marine region`), collapse=", ")),
+                      by=c("varib", "Common.name"))
 #write_xlsx(ht_res_out, "outputs/height_results.xlsx")
+
+# Anecdotal/ Max height to be added manually
 
 #OLD
 #write_xlsx(height_meta, "outputs/height_meta.xlsx")
@@ -343,6 +351,8 @@ speed_ready<-rbind(sp_rd_1, sp_rd_3)
 # run per species
 # use random effects model making each study@stage a separate slab BUT using study as the random effect grouping level.
 
+#escalc(measure='MNLN', mi=mean, sdi=sd, ni=n, data=sp_var, slab=study) useful to check assumptions
+
 # read in prepped data
 speed_ready<-read_excel("analyses/speed_ready.xlsx")
 
@@ -362,7 +372,7 @@ for(i in unique(speed_ready$varib))
     m.mean <- metamean(n = n,
                        mean = mean,
                        sd = sd,
-                       studlab = study,
+                       studlab = paste(study, subset, sep="-"),
                        cluster=study,
                        data = sp_var,
                        sm = "MLN", # use log transformation instead. Probably, advisable when using non-negative data
@@ -382,13 +392,11 @@ for(i in unique(speed_ready$varib))
     speed_meta_out<-rbind(speed_meta_out, out_temp)
   }
 }
+#warnings() fine - just for single studies entered into a re model
 
+# write out results
 
-
-#escalc(measure='MNLN', mi=mean, sdi=sd, ni=n, data=sp_var, slab=study)
-
-
-
+#write_xlsx(speed_meta_out, "outputs/speed_results.xlsx")
 
 #### ***  *** ####
 

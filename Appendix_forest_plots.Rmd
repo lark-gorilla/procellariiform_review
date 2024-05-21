@@ -1,0 +1,56 @@
+---
+title: "Appendix_forest_plots"
+output: word_document
+date: "2024-05-21"
+---
+
+```{r, echo=F, fig.width=10, fig.height=5,warning = FALSE, message = FALSE}
+library(readxl)
+library(dplyr)
+library(meta)
+
+
+rm(list=ls())
+setwd("C:/Users/mmil0049/OneDrive - Monash University/projects/01 southern seabird OWF review/")
+
+# read in prepped data
+speed_ready<-read_excel("analyses/speed_ready.xlsx")
+
+speed_meta_out<-NULL
+for(i in unique(speed_ready$varib))
+{
+  var1<-speed_ready[speed_ready$varib==i,]
+  for(j in unique(var1$sp))
+  {
+    out_temp<-NULL
+    sp_var<-var1[var1$sp==j,]
+    if(nrow(sp_var)==1){
+      out_temp<-data.frame(sp_var[1,1:2],sp_var[1,5], LCI=NA, UCI=NA, sp_var[1,6:7],
+                           n_studies= length(unique(sp_var$study)), stage=paste(unique(sp_var$stage), collapse=", "),
+                           region=paste(unique(sp_var$`marine region`), collapse=", "))}else{
+    
+    m.mean <- metamean(n = n,
+                       mean = mean,
+                       sd = sd,
+                       studlab = paste(study, subset, sep="-"),
+                       cluster=study,
+                       data = sp_var,
+                       sm = "MLN", # use log transformation instead. Probably, advisable when using non-negative data
+                       fixed = FALSE,
+                       random = TRUE,
+                       method.tau = "REML",
+                       title = paste(i, "Scores"))
+    
+    #print(summary(m.mean))
+    print(paste(i, j))
+    forest(m.mean, leftcols = c("studlab", "n", "mean", "sd"),
+           leftlabs = c("Study-subset", NA, NA, NA))
+    #readline("")
+    
+    out_temp<-data.frame(sp_var[1,1:2],mean=exp(m.mean$TE.random), LCI=exp(m.mean$lower.random), UCI=exp(m.mean$upper.random), sd=NA, n=sum(m.mean$n), 
+                         n_studies= length(unique(sp_var$study)), stage=paste(unique(sp_var$stage), collapse=", "), region=paste(unique(sp_var$`marine region`), collapse=", "))
+    }
+    speed_meta_out<-rbind(speed_meta_out, out_temp)
+  }
+}
+```

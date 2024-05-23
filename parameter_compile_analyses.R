@@ -19,7 +19,7 @@ setwd("C:/Users/mmil0049/OneDrive - Monash University/projects/01 southern seabi
 #### *** Read in data and formatting *** ####
 
 #flight height sheet
-dat_FLH<-read_xlsx('C:/Users/mmil0049/Downloads/procellariiform_OWF_review_FORMATTED (12).xlsx', sheet='flight.height', skip=1) # skip top 'checking' row
+dat_FLH<-read_xlsx('C:/Users/mmil0049/Downloads/procellariiform_OWF_review_FORMATTED (13).xlsx', sheet='flight.height', skip=1) # skip top 'checking' row
 
 height_meta<-data.frame(ref=paste(dat_FLH[1,7:ncol(dat_FLH)]), str_split_fixed(dat_FLH[3,7:ncol(dat_FLH)], "@", 5))
 names(height_meta)[2:6]=c("data.type", "place", "country", "marine region", "stage")
@@ -30,7 +30,7 @@ dat_FLH<-dat_FLH[-which(is.na(dat_FLH[,1])),] # remove NA row normally.. at end
 
 
 #flight speed sheet
-dat_FSD<-read_xlsx('C:/Users/mmil0049/Downloads/procellariiform_OWF_review_FORMATTED (12).xlsx', sheet='flight.speed', skip=1) # skip top 'checking' row
+dat_FSD<-read_xlsx('C:/Users/mmil0049/Downloads/procellariiform_OWF_review_FORMATTED (13).xlsx', sheet='flight.speed', skip=1) # skip top 'checking' row
 
 speed_meta<-data.frame(ref=paste(dat_FSD[1,7:ncol(dat_FSD)]), str_split_fixed(dat_FSD[3,7:ncol(dat_FSD)], "@", 5))
 names(speed_meta)[2:6]=c("data.type", "place", "country", "marine region", "stage")
@@ -117,6 +117,11 @@ ht_res_out<-left_join(ht_res_out,
                       app_height_out%>%group_by(varib, Common.name)%>%summarise(stage=paste(unique(stage),
                       collapse=", "), region=paste(unique(`marine region`), collapse=", ")),
                       by=c("varib", "Common.name"))
+
+# read in flight groups, join and summarise per group
+flg<-read_xlsx("data/procellariiform_flight_groups.xlsx")
+ht_res_out<-left_join(ht_res_out, flg[,c(2,8)], by=join_by("Common.name"==`Common name`))
+
 #write_xlsx(ht_res_out, "outputs/height_results.xlsx")
 
 # Anecdotal/ Max height to be added manually
@@ -394,9 +399,52 @@ for(i in unique(speed_ready$varib))
 }
 #warnings() fine - just for single studies entered into a re model
 
+# read in flight groups, join and summarise per group
+flg<-read_xlsx("data/procellariiform_flight_groups.xlsx")
+speed_meta_out<-left_join(speed_meta_out, flg[,c(2,8)], by=join_by("sp"==`Common name`))
+
+speed_meta_out%>%group_by(varib, `Extended flight group`)%>%summarise(Mean=mean(mean), SD=sd(mean))
+
 # write out results
 
 #write_xlsx(speed_meta_out, "outputs/speed_results.xlsx")
 
 #### ***  *** ####
 
+#### *** Combine results tables into main paper table *** #### 
+
+#read in results data
+
+speed_meta_out<-read_xlsx("outputs/speed_results.xlsx")
+ht_res_out<-read_xlsx("outputs/height_results.xlsx")
+flg<-read_xlsx("data/procellariiform_flight_groups.xlsx")
+
+#calc mean and sd per flight group for height and speed
+
+fl_grp_out<-rbind(speed_meta_out%>%group_by(varib, `Extended flight group`)%>%summarise(Mean=mean(mean), SD=sd(mean)),
+ht_res_out%>%group_by(varib, `Extended flight group`)%>%summarise(Mean=mean(wt_ave ), SD=sd(wt_ave )))
+
+#write_xlsx(fl_grp_out, "outputs/height_speed_fl_group_means.xlsx")
+
+# pivot data
+
+piv_speed<-speed_meta_out%>%pivot_wider(id_cols=c(`Extended flight group`, sp), names_from=varib,
+                             values_from=c(mean, LCI, UCI, sd, n, n_studies, stage, region), names_vary = "slowest")
+
+piv_height<-ht_res_out%>%pivot_wider(id_cols=c(`Extended flight group`, Common.name), names_from=varib,
+                                        values_from=c(wt_ave, min, max, n_H, n_M, n_L, stage, region), names_vary = "slowest")
+
+# and combine
+piv_res<-full_join(piv_speed, piv_height, by=join_by(sp==Common.name, `Extended flight group`))
+
+#calc mean and sd per flight group and bind back in then re-order
+flg_mn<-piv_res%>%group_by(`Extended flight group`)%>%summarise_all(.fun=function(x){if(is.numeric(x)){mean(x, na.rm = TRUE)}else{NA}})
+flg_sd<-piv_res%>%group_by(`Extended flight group`)%>%summarise_all(.fun=function(x){if(is.numeric(x)){sd(x, na.rm = TRUE)}else{NA}})
+
+flg_mn$sp<-"ZZ_mean"
+flg_sd$sp<-"ZZ_sd"
+
+piv_res<-rbind(piv_res, flg_mn, flg_sd)
+piv_res<-piv_res%>%arrange(`Extended flight group`, sp)
+
+#### ***  *** ####

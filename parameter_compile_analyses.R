@@ -19,7 +19,7 @@ setwd("C:/Users/mmil0049/OneDrive - Monash University/projects/01 southern seabi
 #### *** Read in data and formatting *** ####
 
 #flight height sheet
-dat_FLH<-read_xlsx('C:/Users/mmil0049/Downloads/procellariiform_OWF_review_FORMATTED (13).xlsx', sheet='flight.height', skip=1) # skip top 'checking' row
+dat_FLH<-read_xlsx('C:/Users/mmil0049/Downloads/procellariiform_OWF_review_FORMATTED (21).xlsx', sheet='flight.height', skip=1) # skip top 'checking' row
 
 height_meta<-data.frame(ref=paste(dat_FLH[1,7:ncol(dat_FLH)]), str_split_fixed(dat_FLH[3,7:ncol(dat_FLH)], "@", 5))
 names(height_meta)[2:6]=c("data.type", "place", "country", "marine region", "stage")
@@ -30,12 +30,20 @@ dat_FLH<-dat_FLH[-which(is.na(dat_FLH[,1])),] # remove NA row normally.. at end
 
 
 #flight speed sheet
-dat_FSD<-read_xlsx('C:/Users/mmil0049/Downloads/procellariiform_OWF_review_FORMATTED (13).xlsx', sheet='flight.speed', skip=1) # skip top 'checking' row
+dat_FSD<-read_xlsx('C:/Users/mmil0049/Downloads/procellariiform_OWF_review_FORMATTED (21).xlsx', sheet='flight.speed', skip=1) # skip top 'checking' row
 
 speed_meta<-data.frame(ref=paste(dat_FSD[1,7:ncol(dat_FSD)]), str_split_fixed(dat_FSD[3,7:ncol(dat_FSD)], "@", 5))
 names(speed_meta)[2:6]=c("data.type", "place", "country", "marine region", "stage")
 
 dat_FSD<-dat_FSD[-c(2,3),] # leaves reference row in there
+
+#NAF sheet
+dat_NAF<-read_xlsx('C:/Users/mmil0049/Downloads/procellariiform_OWF_review_FORMATTED (21).xlsx', sheet='nocturnal.activity', skip=1) # skip top 'checking' row
+
+NAF_meta<-data.frame(ref=paste(dat_NAF[1,7:ncol(dat_NAF)]), str_split_fixed(dat_NAF[3,7:ncol(dat_NAF)], "@", 5))
+names(NAF_meta)[2:6]=c("data.type", "place", "country", "marine region", "stage")
+
+dat_NAF<-dat_NAF[-c(2,3),] # leaves reference row in there
 
 #### ***  *** ####
 
@@ -118,13 +126,7 @@ ht_res_out<-left_join(ht_res_out,
                       collapse=", "), region=paste(unique(`marine region`), collapse=", ")),
                       by=c("varib", "Common.name"))
 
-# read in flight groups, join and summarise per group
-flg<-read_xlsx("data/procellariiform_flight_groups.xlsx")
-ht_res_out<-left_join(ht_res_out, flg[,c(2,8)], by=join_by("Common.name"==`Common name`))
-
-#write_xlsx(ht_res_out, "outputs/height_results.xlsx")
-
-# Anecdotal/ Max height to be added manually
+#anecdotal Max height, added manually
 
 #OLD
 #write_xlsx(height_meta, "outputs/height_meta.xlsx")
@@ -205,8 +207,227 @@ ggplot()+
 
 #### ***  *** ####
 
-#### *** Flight speed review *** ####
+#### *** Nocturnal Activity Factor review *** ####
 
+#Bonnet-Lebrun will need a tweak to region/location metadata.
+# need to think if we can integrate 2 lit review studies into formal meta-analysis
+
+#### *** prep data and cast to long format *** #### 
+
+# function 1 splitting data
+meta_split<-function(x)
+{
+  t1<-unlist(str_split(x, "@"))
+  if(length(t1)==5)
+  {
+    t2<-as.data.frame(as.list(c('Combined', t1)), col.names=(c('V1', "V2", "V3", "V4", "V5", "V6")))
+  }else{
+    t2<-do.call("rbind", (split(t1, ceiling(1:length(t1)/6))))%>%as.data.frame()
+  }
+  return(t2)
+}
+
+# function 2 splitting data
+meta_split_2<-function(x)
+{
+  t1<-unlist(str_split(x, "@"))
+  t2<-do.call("rbind", (split(t1, ceiling(1:length(t1)/4))))%>%as.data.frame()
+  return(t2)
+}
+
+## TIME ON WATER ##
+
+t_on_water<-dat_NAF%>%dplyr::select(c(1:6, starts_with('timeon')))
+names(t_on_water)<-t_on_water[1,];t_on_water<-t_on_water[-1,]
+
+long_t_water<-NULL
+for(i in 1:nrow(t_on_water))
+{
+  fl_speed_temp<-t_on_water[,7:ncol(t_on_water)]
+  sel_sp<-fl_speed_temp[i,which(!is.na(fl_speed_temp[i,]))]
+  if(length(sel_sp)==0){next} # skip sp with no data
+  temp<-do.call("rbind", apply(sel_sp, 2, FUN=meta_split))
+  temp<-data.frame(sp=t_on_water[i,]$`Common name`,
+                   study=paste0(unlist(str_split(row.names(temp), "\\)"))[seq(1, ((nrow(temp)*2)-1), 2)], ")"), temp)
+  long_t_water<-rbind(long_t_water, temp)
+}
+
+row.names(long_t_water)<-NULL 
+
+long_t_water$V2<-100-as.numeric(long_t_water$V2) # reverse so that it now represents time flying
+# Same thing for min max but flip columns as now LCI is UCI
+temp1<-long_t_water$V4
+long_t_water$V4<-100-as.numeric(long_t_water$V5)
+long_t_water$V5<-100-as.numeric(temp1)
+
+## TIME ON WATER ##
+
+t_fly<-dat_NAF%>%dplyr::select(c(1:6, starts_with('timefly')))
+names(t_fly)<-t_fly[1,];t_fly<-t_fly[-1,]
+
+long_t_fly<-NULL
+for(i in 1:nrow(t_fly))
+{
+  fl_speed_temp<-t_fly[,7:ncol(t_fly)]
+  sel_sp<-fl_speed_temp[i,which(!is.na(fl_speed_temp[i,]))]
+  if(length(sel_sp)==0){next} # skip sp with no data
+  temp<-do.call("rbind", apply(sel_sp, 2, FUN=meta_split))
+  temp<-data.frame(sp=t_fly[i,]$`Common name`,
+                   study=paste0(unlist(str_split(row.names(temp), "\\)"))[seq(1, ((nrow(temp)*2)-1), 2)], ")"), temp)
+  long_t_fly<-rbind(long_t_fly, temp)
+}
+
+row.names(long_t_fly)<-NULL 
+
+## NFI ##
+
+NFI_t<-dat_NAF%>%dplyr::select(c(1:6, starts_with('NFI')))
+names(NFI_t)<-NFI_t[1,];NFI_t<-NFI_t[-1,]
+
+long_nfi<-NULL
+for(i in 1:nrow(NFI_t))
+{
+  fl_speed_temp<-NFI_t[,7:ncol(NFI_t)]
+  sel_sp<-fl_speed_temp[i,which(!is.na(fl_speed_temp[i,]))]
+  if(length(sel_sp)==0){next} # skip sp with no data
+  temp<-do.call("rbind", apply(sel_sp, 2, FUN=meta_split))
+  temp<-data.frame(sp=NFI_t[i,]$`Common name`,
+                   study=paste0(unlist(str_split(row.names(temp), "\\)"))[seq(1, ((nrow(temp)*2)-1), 2)], ")"), temp)
+  long_nfi<-rbind(long_nfi, temp)
+}
+
+row.names(long_nfi)<-NULL 
+
+## Lit review ##
+
+lit_nf<-dat_NAF%>%dplyr::select(c(1:6, starts_with('Review')))
+names(lit_nf)<-lit_nf[1,];lit_nf<-lit_nf[-1,]
+
+long_nlit<-NULL
+for(i in 1:nrow(lit_nf))
+{
+  fl_speed_temp<-lit_nf[,7:ncol(lit_nf)]
+  sel_sp<-fl_speed_temp[i,which(!is.na(fl_speed_temp[i,]))]
+  if(length(sel_sp)==0){next} # skip sp with no data
+  temp<-do.call("rbind", apply(sel_sp, 2, FUN=meta_split_2))
+  temp<-data.frame(sp=lit_nf[i,]$`Common name`,
+                   study=paste0(unlist(str_split(row.names(temp), "\\)"))[seq(1, ((nrow(temp)*2)-1), 2)], ")"), temp)
+  long_nlit<-rbind(long_nlit, temp)
+}
+
+row.names(long_nlit)<-NULL 
+
+#Calc mean and sd from min max and reformt to bind wit other datasets
+long_nlit<-data.frame(long_nlit[,1:3],  V2=apply(long_nlit, 1, FUN=function(x){mean(c(as.numeric(x["V2"]), as.numeric(x["V3"])))}),
+                      V3=apply(long_nlit, 1, FUN=function(x){sd(c(as.numeric(x["V2"]), as.numeric(x["V3"])))}), 
+                      V4=long_nlit$V2, V5=long_nlit$V3, V6=long_nlit$V4)
+
+## combine all NAF data
+
+all_naf<-rbind(data.frame(varib="t_fly", long_t_water),data.frame(varib="t_fly", long_t_fly),
+                 data.frame(varib="nfi", long_nfi), data.frame(varib="nlit", long_nlit))
+
+
+# Now impute missing means and SDs from median, min and max
+# function using estmeansd package, using MLN method 
+MLN_mnsd<-function(x){
+  qe1<-mln.mean.sd(min.val = as.numeric(x["V4"]), med.val = as.numeric(x["V2"]),
+                   max.val = as.numeric(x["V5"]), n = as.numeric(x["med_min_max_SS"]))
+  rbind(qe1$est.mean, qe1$est.sd)}
+
+# read in median/min/max sample size sheet 
+med_mi_ma<-read_excel("analyses/median_ss_checking.xlsx")%>%as.data.frame()
+
+med_mi_ma[med_mi_ma$varib=="t_fly",c("V2", "V3")]<- round(t(apply(med_mi_ma%>%filter(varib=="t_fly"), 1, FUN=MLN_mnsd)),2) # apply function and replace median and NA SD vals with calculatd vals
+
+med_mi_ma[med_mi_ma$varib=="nfi",c("V2", "V4", "V5")]<-med_mi_ma[med_mi_ma$varib=="nfi",c("V2", "V4", "V5")]+1# hack for NFI to make vals positive
+med_mi_ma[med_mi_ma$varib=="nfi",c("V2", "V3")]<- round(t(apply(med_mi_ma%>%filter(varib=="nfi"), 1, FUN=MLN_mnsd)),2) # apply function and replace median and NA SD vals with calculatd vals
+med_mi_ma[med_mi_ma$varib=="nfi",c("V2")]<- med_mi_ma[med_mi_ma$varib=="nfi",c("V2")]-1 # then reverse for mean val to rescale 
+
+#recombine datasets
+
+naf_ready<-rbind(med_mi_ma[med_mi_ma$varib%in%c("nfi", "t_fly"), c("varib" ,"sp","study","V1", "V2", "V3", "V6")],
+                   all_naf[all_naf$V3!="NA",c("varib" ,"sp","study","V1", "V2", "V3", "V6")])
+
+names(naf_ready)[4]<-"subset"
+names(naf_ready)[5]<-"mean"
+names(naf_ready)[6]<-"sd"
+names(naf_ready)[7]<-"n"
+
+naf_ready$mean<-as.numeric(naf_ready$mean)
+naf_ready$sd<-as.numeric(naf_ready$sd)
+# naf_ready$n<-as.numeric(naf_ready$n) still have chars in there from lit
+
+naf_ready<-naf_ready%>%arrange("varib", "study", "sp", "subset")
+
+naf_ready<-left_join(naf_ready, NAF_meta, by=c("study"="ref"), multiple='first') # join in meta data
+
+#write_xlsx(naf_ready,"analyses/nocturnal_activity_ready.xlsx") # export pre NFI version for appendix?
+
+# convert to NFI
+
+naf_4_nfi<-naf_ready%>%filter(varib!="nfi")
+
+naf_4_nfi$split<-NA
+naf_4_nfi$dn<-NA
+
+#day
+naf_4_nfi$split<-ifelse(1:nrow(naf_4_nfi)%in%grep("day",naf_4_nfi$subset  , ignore.case=T),
+                           gsub("day", "", naf_4_nfi$subset  , ignore.case=T), naf_4_nfi$split)
+naf_4_nfi$dn<-ifelse(1:nrow(naf_4_nfi)%in%grep("day",naf_4_nfi$subset  , ignore.case=T), "day", naf_4_nfi$dn)
+#night
+naf_4_nfi$split<-ifelse(1:nrow(naf_4_nfi)%in%grep("night",naf_4_nfi$subset  , ignore.case=T),
+                           gsub("night", "", naf_4_nfi$subset  , ignore.case=T), naf_4_nfi$split)
+naf_4_nfi$dn<-ifelse(1:nrow(naf_4_nfi)%in%grep("night",naf_4_nfi$subset  , ignore.case=T), "night", naf_4_nfi$dn)
+
+
+# loop to calculate NFI and correctly propagate errors #https://www.geol.lsu.edu/jlorenzo/geophysics/uncertainties/Uncertaintiespart2.html
+
+nfi_conv<-NULL
+for(i in unique(naf_4_nfi$sp))
+{
+  sp1<-naf_4_nfi[naf_4_nfi$sp==i,]
+  
+  for(j in unique(sp1$study))
+  {
+    stp1<-sp1[sp1$study==j,]
+    
+    for(k in unique(stp1$split))
+    {
+      sub1<-stp1[stp1$split==k,]
+      #2 part calc: 1) Z1=%FN − %FD ; 2) Z2= Z1/max (%FN , %FD)
+      if(sub1[sub1$dn=="night",]$mean==sub1[sub1$dn=="day",]$mean){sub1[sub1$dn=="day",]$mean<-sub1[sub1$dn=="day",]$mean+0.00001} # add tiny constant if exactly equal
+      
+      Z1=sub1[sub1$dn=="night",]$mean-sub1[sub1$dn=="day",]$mean
+      dZ1=sqrt((sub1[sub1$dn=="night",]$sd^2)+(sub1[sub1$dn=="day",]$sd^2))
+      
+      Z2=Z1/max(sub1$mean)
+      dZ2= sqrt(((dZ1/Z1)^2) + ((sub1[which.max(sub1$mean),]$sd/sub1[which.max(sub1$mean),]$mean)^2))*abs(Z2) 
+      
+      out<-sub1[1,]
+      out$mean=Z2
+      out$sd=dZ2
+      
+      nfi_conv<-rbind(nfi_conv, out)
+    }
+  }
+}
+
+nfi_conv$subset<-nfi_conv$split
+nfi_conv$varib<-"nfi"
+nfi_conv$split<-NULL
+nfi_conv$dn<-NULL
+
+nfi_ready<-rbind(naf_ready%>%filter(varib=="nfi"), nfi_conv)
+
+nfi_ready<-nfi_ready%>%arrange("varib", "study", "sp")
+
+#write_xlsx(nfi_ready,"analyses/NFI_ready.xlsx")
+
+
+#### ***  *** ####
+
+#### *** Flight speed review *** ####
 
 #### *** prep data and cast to long format *** #### 
 
@@ -307,7 +528,7 @@ med_mi_ma[c("V2", "V3")]<- round(t(apply(med_mi_ma, 1, FUN=MLN_mnsd)),2) # apply
 
 #recombine datasets and export
 
-speed_ready<-rbind(med_mi_ma[c("varib" ,"sp","study","V1", "V2", "V3", "V6")],
+speed_ready<-rbind(med_mi_ma[med_mi_ma$varib%in%c("speed", "trip", "max"),c("varib" ,"sp","study","V1", "V2", "V3", "V6")],
       all_speed[all_speed$V3!="NA",c("varib" ,"sp","study","V1", "V2", "V3", "V6")])
 
 names(speed_ready)[4]<-"subset"
@@ -399,12 +620,6 @@ for(i in unique(speed_ready$varib))
 }
 #warnings() fine - just for single studies entered into a re model
 
-# read in flight groups, join and summarise per group
-flg<-read_xlsx("data/procellariiform_flight_groups.xlsx")
-speed_meta_out<-left_join(speed_meta_out, flg[,c(2,8)], by=join_by("sp"==`Common name`))
-
-speed_meta_out%>%group_by(varib, `Extended flight group`)%>%summarise(Mean=mean(mean), SD=sd(mean))
-
 # write out results
 
 #write_xlsx(speed_meta_out, "outputs/speed_results.xlsx")
@@ -419,12 +634,12 @@ speed_meta_out<-read_xlsx("outputs/speed_results.xlsx")
 ht_res_out<-read_xlsx("outputs/height_results.xlsx")
 flg<-read_xlsx("data/procellariiform_flight_groups.xlsx")
 
-#calc mean and sd per flight group for height and speed
+speed_meta_out<-left_join(speed_meta_out, flg[,c(2,8)], by=join_by("sp"==`Common name`))
+ht_res_out<-left_join(ht_res_out, flg[,c(2,8)], by=join_by("Common.name"==`Common name`))
 
-fl_grp_out<-rbind(speed_meta_out%>%group_by(varib, `Extended flight group`)%>%summarise(Mean=mean(mean), SD=sd(mean)),
-ht_res_out%>%group_by(varib, `Extended flight group`)%>%summarise(Mean=mean(wt_ave ), SD=sd(wt_ave )))
+#write_xlsx(ht_res_out, "outputs/height_results.xlsx")
 
-#write_xlsx(fl_grp_out, "outputs/height_speed_fl_group_means.xlsx")
+# Anecdotal/ Max height to be added manually
 
 # pivot data
 
@@ -446,5 +661,7 @@ flg_sd$sp<-"ZZ_sd"
 
 piv_res<-rbind(piv_res, flg_mn, flg_sd)
 piv_res<-piv_res%>%arrange(`Extended flight group`, sp)
+
+# now concatenate columns into sensible number. Code breedstages/regions. Leave some tricky ones to do manually.
 
 #### ***  *** ####

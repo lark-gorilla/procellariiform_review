@@ -424,10 +424,71 @@ nfi_ready<-nfi_ready%>%arrange("varib", "study", "sp")
 
 #write_xlsx(nfi_ready,"analyses/NFI_ready.xlsx")
 
+#### ***  *** ####
 
+#### *** Run NFI meta-analysis: mixed models *** #### 
+
+# run per species
+# use random effects model making each study@stage a separate slab BUT using study as the random effect grouping level.
+
+#escalc(measure='MRAW', mi=mean, sdi=sd, ni=n, data=sp_var, slab=study) useful to check assumptions
+
+# read in prepped data
+nfi_ready<-read_excel("analyses/NFI_ready.xlsx")
+
+# edit to set hacked 'almost zero' vals back to zero
+nfi_ready[nfi_ready$mean>-0.000001 & nfi_ready$mean<0,]$mean<-0
+
+nfi_meta_out<-NULL
+
+  for(j in unique(nfi_ready$sp))
+  {
+    out_temp<-NULL
+    sp_var<-nfi_ready[nfi_ready$sp==j,]
+    if(nrow(sp_var)==1){
+      out_temp<-data.frame(sp_var[1,1:2],sp_var[1,5], LCI=NA, UCI=NA, sp_var[1,6:7],
+                           n_studies= length(unique(sp_var$study)), stage=paste(unique(sp_var$stage), collapse=", "),
+                           region=paste(unique(sp_var$`marine region`), collapse=", "))}else{
+                             
+                             # tweak to lit review data to impute n
+                             if(NA%in%(as.numeric(sp_var$n))){
+                            sp_var$n<-ifelse(sp_var$n=="M", median(as.numeric(sp_var$n), na.rm=T), sp_var$n)  
+                            sp_var$n<-ifelse(sp_var$n=="L", min(as.numeric(sp_var$n), na.rm=T), sp_var$n)  
+                             }
+                             
+                             m.mean <- metamean(n = as.numeric(n),
+                                                mean = mean,
+                                                sd = sd,
+                                                studlab = paste(study, subset, sep="-"),
+                                                cluster=study,
+                                                data = sp_var,
+                                                sm = "MRAW",
+                                                fixed = FALSE,
+                                                random = TRUE,
+                                                method.tau = "REML",
+                                                title = paste(j, "Scores"))
+                             
+                             #print(summary(m.mean))
+                             #print(paste(i, j))
+                             #print(forest(m.mean))
+                             #readline("")
+                             
+                             out_temp<-data.frame(sp_var[1,1:2],mean=m.mean$TE.random, LCI=m.mean$lower.random, UCI=m.mean$upper.random, sd=NA, n=sum(m.mean$n), 
+                                                  n_studies= length(unique(sp_var$study)), stage=paste(unique(sp_var$stage), collapse=", "), region=paste(unique(sp_var$`marine region`), collapse=", "))
+                           }
+    nfi_meta_out<-rbind(nfi_meta_out, out_temp)
+  }
+
+#warnings() fine - just for single studies entered into a re model
+
+# write out results
+
+#write_xlsx(speed_meta_out, "outputs/speed_results.xlsx")
 #### ***  *** ####
 
 #### *** Flight speed review *** ####
+
+#### ***  *** ####
 
 #### *** prep data and cast to long format *** #### 
 
@@ -572,7 +633,7 @@ speed_ready<-rbind(sp_rd_1, sp_rd_3)
       
 #### ***  *** ####
 
-#### *** Run meta-analysis: mixed models *** #### 
+#### *** Run Speed meta-analysis: mixed models *** #### 
 
 # run per species
 # use random effects model making each study@stage a separate slab BUT using study as the random effect grouping level.
@@ -625,6 +686,7 @@ for(i in unique(speed_ready$varib))
 #write_xlsx(speed_meta_out, "outputs/speed_results.xlsx")
 
 #### ***  *** ####
+
 
 #### *** Combine results tables into main paper table *** #### 
 

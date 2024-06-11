@@ -489,57 +489,6 @@ for(j in unique(nfi_ready$sp))
 }
 
 
-nfi_meta_out1<-NULL
-
-for(j in unique(nfi_ready$sp))
-{
-  out_temp<-NULL
-  sp_var<-nfi_ready[nfi_ready$sp==j,]
-  if(nrow(sp_var)==1){
-    out_temp<-data.frame(sp_var[1,1:2],sp_var[1,5], LCI=NA, UCI=NA, sp_var[1,6:7],
-                         n_studies= length(unique(sp_var$study)), stage=paste(unique(sp_var$stage), collapse=", "),
-                         region=paste(unique(sp_var$`marine region`), collapse=", "))}else{
-                           
-                           # tweak to lit review data to impute n
-                           if(NA%in%(as.numeric(sp_var$n))){
-                             sp_var$n<-ifelse(sp_var$n=="M", median(as.numeric(sp_var$n), na.rm=T), sp_var$n)  
-                             sp_var$n<-ifelse(sp_var$n=="L", min(as.numeric(sp_var$n), na.rm=T), sp_var$n)  
-                           }
-                           
-                           sp_var$m2<-qlogis((sp_var$mean+1)/2) # apply correction to rescale -1:1 NFI to 0:1 proportion, then take logit 
-                           sp_var$se2<-(sp_var$sd/2)/(sqrt(as.numeric(sp_var$n))) # correction to sd doesn't need +1 as already non negative 
-                           
-                           es1<-escalc(measure='OR', yi=m2, vi=(se2^2)*as.numeric(n),
-                                       data=sp_var, slab=paste(study, subset, sep=", "))
-                           es1$ID<-1:nrow(es1)
-                           # running using ML instead of REML
-                           res <- rma.mv(yi, vi, data=es1, random=~1|study/ID, slab=paste(study, subset, sep=", "), method="ML" )
-                           p1<-predict(res, transf=function(x){(plogis(x)*2)-1})
-                           
-                          
-                           out_temp<-data.frame(sp_var[1,1:2],mean=p1$pred,
-                                                LCI=(p1$ci.lb),
-                                                UCI=(p1$ci.ub),
-                                                sd=NA, n=sum(as.numeric(sp_var$n)), 
-                                                n_studies= length(unique(sp_var$study)), stage=paste(unique(sp_var$stage), collapse=", "), region=paste(unique(sp_var$`marine region`), collapse=", "))
-                         }
-  nfi_meta_out1<-rbind(nfi_meta_out1, out_temp)
-}
-
-
-# check mean vs logit model
-
-nfi_meta_out$id="meta"
-nfi_meta_out1$id="metafor"
-
-temp1<-rbind(nfi_meta_out, nfi_meta_out1)
-
-t2<-temp1%>%filter(n_studies>1)
-
-t2$sp<-factor(t2$sp, levels=unique(t2[order(t2$mean),]$sp))
-
-ggplot(data=t2)+geom_point(aes(x=sp, y=mean, colour=id))+geom_errorbar(aes(x=sp, ymin=LCI, ymax=UCI, colour=id))
-
 #warnings() fine - just for single studies entered into a re model
 
 # write out results

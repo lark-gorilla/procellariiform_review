@@ -479,7 +479,59 @@ nfi_meta_out<-NULL
     nfi_meta_out<-rbind(nfi_meta_out, out_temp)
   }
 
+nfi_meta_out1<-NULL
+
+for(j in unique(nfi_ready$sp))
+{
+  out_temp<-NULL
+  sp_var<-nfi_ready[nfi_ready$sp==j,]
+  if(nrow(sp_var)==1){
+    out_temp<-data.frame(sp_var[1,1:2],sp_var[1,5], LCI=NA, UCI=NA, sp_var[1,6:7],
+                         n_studies= length(unique(sp_var$study)), stage=paste(unique(sp_var$stage), collapse=", "),
+                         region=paste(unique(sp_var$`marine region`), collapse=", "))}else{
+                           
+                           # tweak to lit review data to impute n
+                           if(NA%in%(as.numeric(sp_var$n))){
+                             sp_var$n<-ifelse(sp_var$n=="M", median(as.numeric(sp_var$n), na.rm=T), sp_var$n)  
+                             sp_var$n<-ifelse(sp_var$n=="L", min(as.numeric(sp_var$n), na.rm=T), sp_var$n)  
+                           }
+                           
+                           sp_var$m2<-qlogis((sp_var$mean+1)/2)
+                           sp_var$se2<-(sp_var$sd/2)/(sqrt(as.numeric(sp_var$n)))
+                           
+                           m.mean <- metagen(TE = m2,
+                                              seTE = se2,
+                                              studlab = paste(study, subset, sep="-"),
+                                              cluster=study,
+                                              data = sp_var,
+                                              sm = "OR",
+                                              fixed = FALSE,
+                                              random = TRUE,
+                                              method.tau = "REML",
+                                              title = paste(j, "Scores"), backtransf = F)
+                           
+                           #print(summary(m.mean))
+                           #print(paste(i, j))
+                           #print(forest(m.mean))
+                           #readline("")
+                           
+                           out_temp<-data.frame(sp_var[1,1:2],mean=(plogis(m.mean$TE.random)*2)-1,
+                                                LCI=(plogis(m.mean$lower.random)*2)-1,
+                                                UCI=(plogis(m.mean$upper.random)*2)-1, sd=NA, n=sum(m.mean$n), 
+                                                n_studies= length(unique(sp_var$study)), stage=paste(unique(sp_var$stage), collapse=", "), region=paste(unique(sp_var$`marine region`), collapse=", "))
+                         }
+  nfi_meta_out1<-rbind(nfi_meta_out1, out_temp)
+}
+
 #warnings() fine - just for single studies entered into a re model
+
+# check mean vs logit model
+temp1<-rbind(nfi_meta_out, nfi_meta_out1)
+
+t2<-temp1%>%filter(n_studies>1)
+t2$sp<-factor(t2$sp, levels=unique(t2[order(t2$mean),]$sp))
+
+ggplot(data=t2)+geom_point(aes(x=sp, y=mean, colour=id))+geom_errorbar(aes(x=sp, ymin=LCI, ymax=UCI, colour=id))
 
 # write out results
 

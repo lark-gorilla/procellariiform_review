@@ -431,7 +431,10 @@ nfi_ready<-nfi_ready%>%arrange("varib", "study", "sp")
 # run per species
 # use random effects model making each study@stage a separate slab BUT using study as the random effect grouping level.
 
-#escalc(measure='MRAW', mi=mean, sdi=sd, ni=n, data=sp_var, slab=study) useful to check assumptions
+#es1<-escalc(measure='OR', yi=m2, vi=(se2^2)*as.numeric(n), data=sp_var, slab=study) #useful to check assumptions
+#es1$ID<-1:nrow(es1)
+#res <- rma.mv(yi, vi, data=es1, random=~1|study/ID, slab=paste(study, subset, sep=", "), method="REML" )
+#predict(res, transf=fun1)
 
 # read in prepped data
 nfi_ready<-read_excel("analyses/NFI_ready.xlsx")
@@ -439,45 +442,52 @@ nfi_ready<-read_excel("analyses/NFI_ready.xlsx")
 # edit to set hacked 'almost zero' vals back to zero
 nfi_ready[nfi_ready$mean>-0.000001 & nfi_ready$mean<0,]$mean<-0
 
+
 nfi_meta_out<-NULL
 
-  for(j in unique(nfi_ready$sp))
-  {
-    out_temp<-NULL
-    sp_var<-nfi_ready[nfi_ready$sp==j,]
-    if(nrow(sp_var)==1){
-      out_temp<-data.frame(sp_var[1,1:2],sp_var[1,5], LCI=NA, UCI=NA, sp_var[1,6:7],
-                           n_studies= length(unique(sp_var$study)), stage=paste(unique(sp_var$stage), collapse=", "),
-                           region=paste(unique(sp_var$`marine region`), collapse=", "))}else{
-                             
-                             # tweak to lit review data to impute n
-                             if(NA%in%(as.numeric(sp_var$n))){
-                            sp_var$n<-ifelse(sp_var$n=="M", median(as.numeric(sp_var$n), na.rm=T), sp_var$n)  
-                            sp_var$n<-ifelse(sp_var$n=="L", min(as.numeric(sp_var$n), na.rm=T), sp_var$n)  
-                             }
-                             
-                             m.mean <- metamean(n = as.numeric(n),
-                                                mean = mean,
-                                                sd = sd,
-                                                studlab = paste(study, subset, sep="-"),
-                                                cluster=study,
-                                                data = sp_var,
-                                                sm = "MRAW",
-                                                fixed = FALSE,
-                                                random = TRUE,
-                                                method.tau = "REML",
-                                                title = paste(j, "Scores"))
-                             
-                             #print(summary(m.mean))
-                             #print(paste(i, j))
-                             #print(forest(m.mean))
-                             #readline("")
-                             
-                             out_temp<-data.frame(sp_var[1,1:2],mean=m.mean$TE.random, LCI=m.mean$lower.random, UCI=m.mean$upper.random, sd=NA, n=sum(m.mean$n), 
-                                                  n_studies= length(unique(sp_var$study)), stage=paste(unique(sp_var$stage), collapse=", "), region=paste(unique(sp_var$`marine region`), collapse=", "))
+for(j in unique(nfi_ready$sp))
+{
+  out_temp<-NULL
+  sp_var<-nfi_ready[nfi_ready$sp==j,]
+  if(nrow(sp_var)==1){
+    out_temp<-data.frame(sp_var[1,1:2],sp_var[1,5], LCI=NA, UCI=NA, sp_var[1,6:7],
+                         n_studies= length(unique(sp_var$study)), stage=paste(unique(sp_var$stage), collapse=", "),
+                         region=paste(unique(sp_var$`marine region`), collapse=", "))}else{
+                           
+                           # tweak to lit review data to impute n
+                           if(NA%in%(as.numeric(sp_var$n))){
+                             sp_var$n<-ifelse(sp_var$n=="M", median(as.numeric(sp_var$n), na.rm=T), sp_var$n)  
+                             sp_var$n<-ifelse(sp_var$n=="L", min(as.numeric(sp_var$n), na.rm=T), sp_var$n)  
                            }
-    nfi_meta_out<-rbind(nfi_meta_out, out_temp)
-  }
+                           
+                           sp_var$m2<-qlogis((sp_var$mean+1)/2) # apply correction to rescale -1:1 NFI to 0:1 proportion, then take logit 
+                           sp_var$se2<-(sp_var$sd/2)/(sqrt(as.numeric(sp_var$n))) # correction to sd doesn't need +1 as already non negative 
+                           
+                           m.mean <- metagen(TE = m2,
+                                              seTE = se2,
+                                              studlab = paste(study, subset, sep="-"),
+                                              cluster=study,
+                                              data = sp_var,
+                                              sm = "OR",
+                                              fixed = FALSE,
+                                              random = TRUE,
+                                              method.tau = "ML",
+                                              title = paste(j, "Scores"), backtransf = F)
+                           
+                           #print(summary(m.mean))
+                           #print(paste(i, j))
+                           #print(forest(m.mean))
+                           #readline("")
+                           
+                           out_temp<-data.frame(sp_var[1,1:2],mean=(plogis(m.mean$TE.random)*2)-1,
+                                                LCI=(plogis(m.mean$lower.random)*2)-1,
+                                                UCI=(plogis(m.mean$upper.random)*2)-1,
+                                                sd=NA, n=sum(as.numeric(sp_var$n)), 
+                                                n_studies= length(unique(sp_var$study)), stage=paste(unique(sp_var$stage), collapse=", "), region=paste(unique(sp_var$`marine region`), collapse=", "))
+                         }
+  nfi_meta_out<-rbind(nfi_meta_out, out_temp)
+}
+
 
 nfi_meta_out1<-NULL
 
@@ -496,46 +506,45 @@ for(j in unique(nfi_ready$sp))
                              sp_var$n<-ifelse(sp_var$n=="L", min(as.numeric(sp_var$n), na.rm=T), sp_var$n)  
                            }
                            
-                           sp_var$m2<-qlogis((sp_var$mean+1)/2)
-                           sp_var$se2<-(sp_var$sd/2)/(sqrt(as.numeric(sp_var$n)))
+                           sp_var$m2<-qlogis((sp_var$mean+1)/2) # apply correction to rescale -1:1 NFI to 0:1 proportion, then take logit 
+                           sp_var$se2<-(sp_var$sd/2)/(sqrt(as.numeric(sp_var$n))) # correction to sd doesn't need +1 as already non negative 
                            
-                           m.mean <- metagen(TE = m2,
-                                              seTE = se2,
-                                              studlab = paste(study, subset, sep="-"),
-                                              cluster=study,
-                                              data = sp_var,
-                                              sm = "OR",
-                                              fixed = FALSE,
-                                              random = TRUE,
-                                              method.tau = "REML",
-                                              title = paste(j, "Scores"), backtransf = F)
+                           es1<-escalc(measure='OR', yi=m2, vi=(se2^2)*as.numeric(n),
+                                       data=sp_var, slab=paste(study, subset, sep=", "))
+                           es1$ID<-1:nrow(es1)
+                           # running using ML instead of REML
+                           res <- rma.mv(yi, vi, data=es1, random=~1|study/ID, slab=paste(study, subset, sep=", "), method="ML" )
+                           p1<-predict(res, transf=function(x){(plogis(x)*2)-1})
                            
-                           #print(summary(m.mean))
-                           #print(paste(i, j))
-                           #print(forest(m.mean))
-                           #readline("")
-                           
-                           out_temp<-data.frame(sp_var[1,1:2],mean=(plogis(m.mean$TE.random)*2)-1,
-                                                LCI=(plogis(m.mean$lower.random)*2)-1,
-                                                UCI=(plogis(m.mean$upper.random)*2)-1, sd=NA, n=sum(m.mean$n), 
+                          
+                           out_temp<-data.frame(sp_var[1,1:2],mean=p1$pred,
+                                                LCI=(p1$ci.lb),
+                                                UCI=(p1$ci.ub),
+                                                sd=NA, n=sum(as.numeric(sp_var$n)), 
                                                 n_studies= length(unique(sp_var$study)), stage=paste(unique(sp_var$stage), collapse=", "), region=paste(unique(sp_var$`marine region`), collapse=", "))
                          }
   nfi_meta_out1<-rbind(nfi_meta_out1, out_temp)
 }
 
-#warnings() fine - just for single studies entered into a re model
 
 # check mean vs logit model
+
+nfi_meta_out$id="meta"
+nfi_meta_out1$id="metafor"
+
 temp1<-rbind(nfi_meta_out, nfi_meta_out1)
 
 t2<-temp1%>%filter(n_studies>1)
+
 t2$sp<-factor(t2$sp, levels=unique(t2[order(t2$mean),]$sp))
 
 ggplot(data=t2)+geom_point(aes(x=sp, y=mean, colour=id))+geom_errorbar(aes(x=sp, ymin=LCI, ymax=UCI, colour=id))
 
+#warnings() fine - just for single studies entered into a re model
+
 # write out results
 
-#write_xlsx(speed_meta_out, "outputs/speed_results.xlsx")
+#write_xlsx(nfi_meta_out, "outputs/NFI_results.xlsx")
 #### ***  *** ####
 
 #### *** Flight speed review *** ####

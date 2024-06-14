@@ -847,7 +847,6 @@ flg_mn$`Extended flight group`<-factor(flg_mn$`Extended flight group`, levels=fl
 piv_nfi$`Extended flight group`<-factor(piv_nfi$`Extended flight group`, levels=levels( flg_mn$`Extended flight group`))
 nfi_ready$`Extended flight group`<-factor(nfi_ready$`Extended flight group`, levels=levels( flg_mn$`Extended flight group`))
 
-
 #Species + genus averaged plot
 
 nfi_p<-ggplot()+
@@ -859,8 +858,8 @@ nfi_p<-ggplot()+
   scale_y_continuous(breaks=seq(-1, 1, 0.2), limits=c(-1, 1))+
   labs(y="Night Flight Index")+
   scale_x_discrete(guide = guide_axis(n.dodge = 2))+theme_bw()+
-  theme(axis.text=element_text(size=14),
-        axis.title=element_text(size=14,face="bold"),
+  theme(axis.text=element_text(size=10),
+        axis.title=element_text(size=10,face="bold"),
         axis.title.x = element_blank())
 
 #order by decreasing risk
@@ -871,23 +870,50 @@ speed_ready$`Extended flight group`<-factor(speed_ready$`Extended flight group`,
 #Species + genus averaged plot
 
 speed_p<-ggplot()+
-  geom_jitter(data=speed_ready%>%filter(varib=="trip"&!is.na(mean)), aes(x=`Extended flight group`, y=mean ), height=0, width=0.15, alpha=0.2, size=2, colour='orange')+
-  geom_jitter(data=piv_speed%>%filter(!is.na(mean_trip)), aes(x=`Extended flight group`, y=mean_trip ), height=0, width=0.05, alpha=0.6, size=2, colour='orange')+
-  geom_point(data=flg_mn%>%filter(!is.na(mean_trip)), aes(x=`Extended flight group`, y=mean_trip), size=4, colour='orange')+
+  geom_jitter(data=speed_ready%>%filter(varib=="trip"&!is.na(mean)), aes(x=`Extended flight group`, y=mean, colour='trip'), height=0, width=0.15, alpha=0.2, size=2)+
+  geom_jitter(data=piv_speed%>%filter(!is.na(mean_trip)), aes(x=`Extended flight group`, y=mean_trip, colour='trip' ), height=0, width=0.05, alpha=0.6, size=2)+
+  geom_point(data=flg_mn%>%filter(!is.na(mean_trip)), aes(x=`Extended flight group`, y=mean_trip, colour='trip'), size=4)+
   geom_point(data=flg_mn%>%filter(!is.na(mean_trip)), aes(x=`Extended flight group`, y=mean_trip), size=4, colour='black', shape=1)+
-  geom_jitter(data=speed_ready%>%filter(varib=="max"&!is.na(mean)), aes(x=`Extended flight group`, y=mean ), height=0, width=0.15, alpha=0.2, size=2, colour='darkred')+
-  geom_jitter(data=piv_speed%>%filter(!is.na(mean_max)), aes(x=`Extended flight group`, y=mean_max ), height=0, width=0.05, alpha=0.6, size=2, colour='darkred')+
-  geom_point(data=flg_mn%>%filter(!is.na(mean_max)), aes(x=`Extended flight group`, y=mean_max), size=4, colour='darkred')+
+  geom_jitter(data=speed_ready%>%filter(varib=="max"&!is.na(mean)), aes(x=`Extended flight group`, y=mean, colour='max' ), height=0, width=0.15, alpha=0.2, size=2)+
+  geom_jitter(data=piv_speed%>%filter(!is.na(mean_max)), aes(x=`Extended flight group`, y=mean_max , colour='max' ), height=0, width=0.05, alpha=0.6, size=2)+
+  geom_point(data=flg_mn%>%filter(!is.na(mean_max)), aes(x=`Extended flight group`, y=mean_max, colour='max' ), size=4)+
   geom_point(data=flg_mn%>%filter(!is.na(mean_max)), aes(x=`Extended flight group`, y=mean_max), size=4, colour='black', shape=1)+
-  geom_jitter(data=speed_ready%>%filter(varib=="speed"&!is.na(mean)), aes(x=`Extended flight group`, y=mean ), height=0, width=0.15, alpha=0.2, size=2, colour='blue')+
-  geom_jitter(data=piv_speed%>%filter(!is.na(mean_speed)), aes(x=`Extended flight group`, y=mean_speed ), height=0, width=0.05, alpha=0.6, size=2, colour='blue')+
-  geom_point(data=flg_mn%>%filter(!is.na(mean_speed)), aes(x=`Extended flight group`, y=mean_speed), size=4, colour='blue')+
+  geom_jitter(data=speed_ready%>%filter(varib=="speed"&!is.na(mean)), aes(x=`Extended flight group`, y=mean, colour='speed' ), height=0, width=0.15, alpha=0.2, size=2)+
+  geom_jitter(data=piv_speed%>%filter(!is.na(mean_speed)), aes(x=`Extended flight group`, y=mean_speed , colour='speed'), height=0, width=0.05, alpha=0.6, size=2)+
+  geom_point(data=flg_mn%>%filter(!is.na(mean_speed)), aes(x=`Extended flight group`, y=mean_speed, colour='speed'), size=4)+
   geom_point(data=flg_mn%>%filter(!is.na(mean_speed)), aes(x=`Extended flight group`, y=mean_speed), size=4, colour='black', shape=1)+
   labs(y="Speed (m/s)")+
   scale_x_discrete(guide = guide_axis(n.dodge = 2), drop=F)+theme_bw()+
-  theme(axis.text=element_text(size=14),
-        axis.title=element_text(size=14,face="bold"),
-        axis.title.x = element_blank())
+  scale_color_manual(name = "Group",
+                     values = c( "speed" = "blue", "max" = "darkred", "trip" = "orange"),
+                     labels = c( "Maximum speed","Flight speed", "Trip speed"))+
+  theme(axis.text=element_text(size=10),
+        axis.title=element_text(size=10,face="bold"),
+        axis.title.x = element_blank(), legend.position=c(.9,.8))
+
+#order by decreasing risk
+flg_mn$`Extended flight group`<-factor(flg_mn$`Extended flight group`, levels=flg_mn[order(flg_mn$wt_ave_percRSZ, decreasing =T),] $`Extended flight group`)
+piv_height$`Extended flight group`<-factor(piv_height$`Extended flight group`, levels=levels( flg_mn$`Extended flight group`))
+height_ready$`Extended flight group`<-factor(height_ready$`Extended flight group`, levels=levels( flg_mn$`Extended flight group`))
+
+#Species + genus averaged plot
+
+rsz_p<-ggplot()+
+  geom_jitter(data=height_ready%>%filter(varib=="percRSZ"& !is.na(X1)), aes(x=`Extended flight group`, y=as.numeric(X1), colour=X2 ), height=0, width=0.2, alpha=0.4, size=2)+
+  geom_point(data=flg_mn%>%filter(!is.na(wt_ave_percRSZ)), aes(x=`Extended flight group`, y=wt_ave_percRSZ), size=4, colour='black', shape=1)+
+  labs(y="Time in Rotor Swept Zone (%)")+
+  scale_y_continuous(breaks=seq(0, 25, 2),limits=c(0, 25))+
+  scale_color_manual(name = "Study accuracy",
+                     values = c( "H" = "blue", "M" = "orange", "L" = "darkred"),
+                     labels = c( "High","Low", "Medium"))+
+  scale_x_discrete(guide = guide_axis(n.dodge = 2))+theme_bw()+
+  theme(axis.text=element_text(size=10),
+        axis.title=element_text(size=10,face="bold"),
+        axis.title.x = element_blank(), legend.position=c(.9,.8))
+
+
+library(patchwork)
+speed_p/nfi_p/rsz_p
 
 # Species plot to present reasoning for pooling RSZ heights: basically lots of error. Could test with stats if needed
 

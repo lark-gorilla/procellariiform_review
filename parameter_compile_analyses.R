@@ -260,7 +260,7 @@ temp1<-long_t_water$V4
 long_t_water$V4<-100-as.numeric(long_t_water$V5)
 long_t_water$V5<-100-as.numeric(temp1)
 
-## TIME ON WATER ##
+## TIME FLYING ##
 
 t_fly<-dat_NAF%>%dplyr::select(c(1:6, starts_with('timefly')))
 names(t_fly)<-t_fly[1,];t_fly<-t_fly[-1,]
@@ -701,32 +701,54 @@ for(i in unique(speed_ready$varib))
 #### *** Combine results tables into main paper table *** #### 
 
 #read in results data
-
 speed_meta_out<-read_xlsx("outputs/speed_results.xlsx")
 ht_res_out<-read_xlsx("outputs/height_results.xlsx")
-flg<-read_xlsx("data/procellariiform_flight_groups.xlsx")
+nfi_meta_out<-read_xlsx("outputs/NFI_results.xlsx")
 
+# join each to extended flight group
+
+flg<-read_xlsx("data/procellariiform_flight_groups.xlsx")
 speed_meta_out<-left_join(speed_meta_out, flg[,c(2,8)], by=join_by("sp"==`Common name`))
+nfi_meta_out<-left_join(nfi_meta_out, flg[,c(2,8)], by=join_by("sp"==`Common name`))
 ht_res_out<-left_join(ht_res_out, flg[,c(2,8)], by=join_by("Common.name"==`Common name`))
 
-#write_xlsx(ht_res_out, "outputs/height_results.xlsx")
 
-# Anecdotal/ Max height to be added manually
+# Anecdotal/ Max HEIGHT to be added manually
 
 # pivot data
 
 piv_speed<-speed_meta_out%>%pivot_wider(id_cols=c(`Extended flight group`, sp), names_from=varib,
                              values_from=c(mean, LCI, UCI, sd, n, n_studies, stage, region), names_vary = "slowest")
 
+piv_nfi<-nfi_meta_out%>%pivot_wider(id_cols=c(`Extended flight group`, sp), names_from=varib,
+                                        values_from=c(mean, LCI, UCI, sd, n, n_studies, stage, region), names_vary = "slowest")
+
 piv_height<-ht_res_out%>%pivot_wider(id_cols=c(`Extended flight group`, Common.name), names_from=varib,
                                         values_from=c(wt_ave, min, max, n_H, n_M, n_L, stage, region), names_vary = "slowest")
 
 # and combine
 piv_res<-full_join(piv_speed, piv_height, by=join_by(sp==Common.name, `Extended flight group`))
+piv_res<-full_join(piv_res, piv_nfi, by=join_by(sp, `Extended flight group`))
 
 #calc mean and sd per flight group and bind back in then re-order
 flg_mn<-piv_res%>%group_by(`Extended flight group`)%>%summarise_all(.fun=function(x){if(is.numeric(x)){mean(x, na.rm = TRUE)}else{NA}})
 flg_sd<-piv_res%>%group_by(`Extended flight group`)%>%summarise_all(.fun=function(x){if(is.numeric(x)){sd(x, na.rm = TRUE)}else{NA}})
+
+flg_minmax<-piv_res%>%group_by(`Extended flight group`)%>%summarise(p1_mi1=min(min_percRSZ , na.rm = TRUE),p1_mi2=min(wt_ave_percRSZ , na.rm = TRUE), 
+                                                                    p1_mx1=max(max_percRSZ , na.rm = TRUE),p1_mx2=max(wt_ave_percRSZ , na.rm = TRUE),
+                                                                    p2_mi1=min(min_height , na.rm = TRUE),p2_mi2=min(wt_ave_height , na.rm = TRUE), 
+                                                                    p2_mx1=max(max_height , na.rm = TRUE),p2_mx2=max(wt_ave_height , na.rm = TRUE))
+
+flg_minmax$p1_min<-apply(cbind(flg_minmax$p1_mi1, flg_minmax$p1_mi2),1, min)
+flg_minmax$p1_max<-apply(cbind(flg_minmax$p1_mx1, flg_minmax$p1_mx2),1, max)
+flg_minmax$p2_min<-apply(cbind(flg_minmax$p2_mi1, flg_minmax$p2_mi2),1, min)
+flg_minmax$p2_max<-apply(cbind(flg_minmax$p2_mx1, flg_minmax$p2_mx2),1, max)
+
+
+flg_mn$min_percRSZ<-flg_minmax$p1_min
+flg_mn$max_percRSZ<-flg_minmax$p1_max
+flg_mn$min_height<-flg_minmax$p2_min
+flg_mn$max_height<-flg_minmax$p2_max
 
 flg_mn$sp<-"ZZ_mean"
 flg_sd$sp<-"ZZ_sd"
@@ -735,5 +757,181 @@ piv_res<-rbind(piv_res, flg_mn, flg_sd)
 piv_res<-piv_res%>%arrange(`Extended flight group`, sp)
 
 # now concatenate columns into sensible number. Code breedstages/regions. Leave some tricky ones to do manually.
+# make two tables, one near raw of piv_res + anecdotal/max Height for supp; one, trimmed piv_res for main table
+
+# main table
+
+tab1<-piv_res
+# calculate SDs from CIs and n https://handbook-5-1.cochrane.org/chapter_7/7_7_3_2_obtaining_standard_deviations_from_standard_errors_and.htm
+
+tab1$sd_speed<-ifelse(is.na(tab1$sd_speed),sqrt(tab1$n_speed)*(tab1$UCI_speed- tab1$LCI_speed)/3.92 ,tab1$sd_speed)
+tab1$sd_trip<-ifelse(is.na(tab1$sd_trip),sqrt(tab1$n_trip)*(tab1$UCI_trip- tab1$LCI_trip)/3.92 ,tab1$sd_trip)
+tab1$sd_max<-ifelse(is.na(tab1$sd_max),sqrt(tab1$n_max)*(tab1$UCI_max- tab1$LCI_max)/3.92 ,tab1$sd_max)
+tab1$sd_nfi<-ifelse(is.na(tab1$sd_nfi),sqrt(as.numeric(tab1$n_nfi))*(tab1$UCI_nfi- tab1$LCI_nfi)/3.92 ,tab1$sd_nfi)
+
+#code regions
+tab1<-tab1 %>% mutate(across(c(region_speed, region_trip, region_max, region_percRSZ, region_height, region_nfi), gsub, pattern = "North Atlantic", replacement = "NAt"))
+tab1<-tab1 %>% mutate(across(c(region_speed, region_trip, region_max, region_percRSZ, region_height, region_nfi), gsub, pattern = "South Atlantic", replacement = "SAt"))
+tab1<-tab1 %>% mutate(across(c(region_speed, region_trip, region_max, region_percRSZ, region_height, region_nfi), gsub, pattern = "Mediterranean", replacement = "Med"))
+tab1<-tab1 %>% mutate(across(c(region_speed, region_trip, region_max, region_percRSZ, region_height, region_nfi), gsub, pattern = "Antarctic", replacement = "Ant"))
+tab1<-tab1 %>% mutate(across(c(region_speed, region_trip, region_max, region_percRSZ, region_height, region_nfi), gsub, pattern = "Eastern Pacific", replacement = "EPa"))
+tab1<-tab1 %>% mutate(across(c(region_speed, region_trip, region_max, region_percRSZ, region_height, region_nfi), gsub, pattern = "Western Pacific", replacement = "WPa"))
+tab1<-tab1 %>% mutate(across(c(region_speed, region_trip, region_max, region_percRSZ, region_height, region_nfi), gsub, pattern = "North Pacific", replacement = "NPa"))
+tab1<-tab1 %>% mutate(across(c(region_speed, region_trip, region_max, region_percRSZ, region_height, region_nfi), gsub, pattern = "Unknown", replacement = "Unk"))
+tab1<-tab1 %>% mutate(across(c(region_speed, region_trip, region_max, region_percRSZ, region_height, region_nfi), gsub, pattern = "North Sea", replacement = "Nth"))
+tab1<-tab1 %>% mutate(across(c(region_speed, region_trip, region_max, region_percRSZ, region_height, region_nfi), gsub, pattern = "Caribbean Sea and Gulf of Mexico", replacement = "Crb"))
+tab1<-tab1 %>% mutate(across(c(region_speed, region_trip, region_max, region_percRSZ, region_height, region_nfi), gsub, pattern = "Indian", replacement = "Ind"))
+tab1<-tab1 %>% mutate(across(c(region_speed, region_trip, region_max, region_percRSZ, region_height, region_nfi), gsub, pattern = "Ocean", replacement = ""))
+tab1<-tab1 %>% mutate(across(c(region_speed, region_trip, region_max, region_percRSZ, region_height, region_nfi), gsub, pattern = "Oceans", replacement = ""))
+tab1<-tab1 %>% mutate(across(c(region_speed, region_trip, region_max, region_percRSZ, region_height, region_nfi), gsub, pattern = "Sea", replacement = ""))
+tab1<-tab1 %>% mutate(across(c(region_speed, region_trip, region_max, region_percRSZ, region_height, region_nfi), gsub, pattern = "and", replacement = ","))
+tab1<-tab1 %>% mutate(across(c(region_speed, region_trip, region_max, region_percRSZ, region_height, region_nfi), gsub, pattern = "Global", replacement = "All"))
+
+# code stages
+tab1<-tab1 %>% mutate(across(c(stage_speed, stage_trip, stage_max, stage_percRSZ, stage_height, stage_nfi), gsub, pattern = "Incubation", replacement = "Inc", ignore.case=T))
+tab1<-tab1 %>% mutate(across(c(stage_speed, stage_trip, stage_max, stage_percRSZ, stage_height, stage_nfi), gsub, pattern = "Unknown", replacement = "Unk", ignore.case=T))
+tab1<-tab1 %>% mutate(across(c(stage_speed, stage_trip, stage_max, stage_percRSZ, stage_height, stage_nfi), gsub, pattern = "Brooding", replacement = "BrG", ignore.case=T))
+tab1<-tab1 %>% mutate(across(c(stage_speed, stage_trip, stage_max, stage_percRSZ, stage_height, stage_nfi), gsub, pattern = "Brood-guard", replacement = "BrG", ignore.case=T))
+tab1<-tab1 %>% mutate(across(c(stage_speed, stage_trip, stage_max, stage_percRSZ, stage_height, stage_nfi), gsub, pattern = "Brood guard", replacement = "BrG", ignore.case=T))
+tab1<-tab1 %>% mutate(across(c(stage_speed, stage_trip, stage_max, stage_percRSZ, stage_height, stage_nfi), gsub, pattern = "chick guard", replacement = "BrG", ignore.case=T))
+tab1<-tab1 %>% mutate(across(c(stage_speed, stage_trip, stage_max, stage_percRSZ, stage_height, stage_nfi), gsub, pattern = "chick-brooding", replacement = "BrG", ignore.case=T))
+tab1<-tab1 %>% mutate(across(c(stage_speed, stage_trip, stage_max, stage_percRSZ, stage_height, stage_nfi), gsub, pattern = "Chick-rearing", replacement = "Chk", ignore.case=T))
+tab1<-tab1 %>% mutate(across(c(stage_speed, stage_trip, stage_max, stage_percRSZ, stage_height, stage_nfi), gsub, pattern = "Chick rearing", replacement = "Chk", ignore.case=T))
+tab1<-tab1 %>% mutate(across(c(stage_speed, stage_trip, stage_max, stage_percRSZ, stage_height, stage_nfi), gsub, pattern = "Post-guard", replacement = "Chk", ignore.case=T))
+tab1<-tab1 %>% mutate(across(c(stage_speed, stage_trip, stage_max, stage_percRSZ, stage_height, stage_nfi), gsub, pattern = "migration and wintering (total non-breeding)", replacement = "Nbr", ignore.case=T))
+tab1<-tab1 %>% mutate(across(c(stage_speed, stage_trip, stage_max, stage_percRSZ, stage_height, stage_nfi), gsub, pattern = "Non-breeding", replacement = "NBr", ignore.case=T))
+tab1<-tab1 %>% mutate(across(c(stage_speed, stage_trip, stage_max, stage_percRSZ, stage_height, stage_nfi), gsub, pattern = "Entire breeding", replacement = "Brd", ignore.case=T))
+tab1<-tab1 %>% mutate(across(c(stage_speed, stage_trip, stage_max, stage_percRSZ, stage_height, stage_nfi), gsub, pattern = "breeding season", replacement = "Brd", ignore.case=T))
+tab1<-tab1 %>% mutate(across(c(stage_speed, stage_trip, stage_max, stage_percRSZ, stage_height, stage_nfi), gsub, pattern = "breeding", replacement = "Brd", ignore.case=T))
+tab1<-tab1 %>% mutate(across(c(stage_speed, stage_trip, stage_max, stage_percRSZ, stage_height, stage_nfi), gsub, pattern = "Migration", replacement = "Mig", ignore.case=T))
+tab1<-tab1 %>% mutate(across(c(stage_speed, stage_trip, stage_max, stage_percRSZ, stage_height, stage_nfi), gsub, pattern = "Wintering", replacement = "Wnt", ignore.case=T))
+tab1<-tab1 %>% mutate(across(c(stage_speed, stage_trip, stage_max, stage_percRSZ, stage_height, stage_nfi), gsub, pattern = "Winter", replacement = "Wnt", ignore.case=T))
+tab1<-tab1 %>% mutate(across(c(stage_speed, stage_trip, stage_max, stage_percRSZ, stage_height, stage_nfi), gsub, pattern = "Winter", replacement = "Wnt", ignore.case=T))
+tab1<-tab1 %>% mutate(across(c(stage_speed, stage_trip, stage_max, stage_percRSZ, stage_height, stage_nfi), gsub, pattern = "All stages", replacement = "All", ignore.case=T))
+tab1<-tab1 %>% mutate(across(c(stage_speed, stage_trip, stage_max, stage_percRSZ, stage_height, stage_nfi), gsub, pattern = "Annual cycle", replacement = "All", ignore.case=T))
+tab1<-tab1 %>% mutate(across(c(stage_speed, stage_trip, stage_max, stage_percRSZ, stage_height, stage_nfi), gsub, pattern = "and", replacement = ",", ignore.case=T))
+
+#format group mean and sd then concatenate
+tab1[tab1$sp=='ZZ_mean',]$sd_speed<-tab1[tab1$sp=='ZZ_sd',]$mean_speed
+tab1[tab1$sp=='ZZ_mean',]$sd_trip<-tab1[tab1$sp=='ZZ_sd',]$mean_trip
+tab1[tab1$sp=='ZZ_mean',]$sd_max<-tab1[tab1$sp=='ZZ_sd',]$mean_max
+tab1[tab1$sp=='ZZ_mean',]$sd_nfi<-tab1[tab1$sp=='ZZ_sd',]$mean_nfi
+
+tab1$mean_speed<-paste0(round(tab1$mean_speed, 1), "±", round(tab1$sd_speed, 1))
+tab1$mean_trip<-paste0(round(tab1$mean_trip, 1), "±", round(tab1$sd_trip, 1))
+tab1$mean_max<-paste0(round(tab1$mean_max, 1), "±", round(tab1$sd_max, 1))
+tab1$wt_ave_percRSZ<-paste0(round(tab1$wt_ave_percRSZ,1), "(", round(tab1$min_percRSZ, 1), "-", round(tab1$max_percRSZ, 1), ")")
+tab1$wt_ave_height<-paste0(round(tab1$wt_ave_height,1), "(", round(tab1$min_height, 1), "-", round(tab1$max_height, 1), ")")
+tab1$mean_nfi<-paste0(round(tab1$mean_nfi, 1), "±", round(tab1$sd_nfi, 1))
+
+#tidy
+tab1<-tab1 %>% mutate(across(everything(), gsub, pattern = "(NA-NA)", replacement = "", fixed=T))
+tab1<-tab1 %>% mutate(across(everything(), gsub, pattern = "NA±NA", replacement = "", fixed=T))
+tab1<-tab1 %>% mutate(across(everything(), gsub, pattern = "NaN±NA", replacement = "", fixed=T))
+tab1<-tab1 %>% mutate(across(everything(), gsub, pattern = "NA±NaN", replacement = "", fixed=T))
+tab1<-tab1 %>% mutate(across(everything(), gsub, pattern = "NaN±NaN", replacement = "", fixed=T))
+
+#arrange by fight group
+tab1$`Extended flight group`<-factor(tab1$`Extended flight group`, levels=
+                                       c("Great albatrosses", "Sooty albatrosses", "Small albatrosses", "Giant petrels", "Fulmars", "Procellaria petrels", 
+                                         "Large gadfly petrels", "Small gadfly petrels", "Calonectris shearwaters", "Surface feeding shearwaters", "Diving shearwaters", 
+                                         "Manx type shearwaters", "Prions", "Diving petrels", "Oceanodroma", "Frigate petrels", "Oceanites"))
+
+tab1<-tab1%>%arrange(`Extended flight group`, sp)
+
+#clean up flight group summary rows
+tab1<-tab1%>%filter(sp!="ZZ_sd")
+tab1[tab1$sp=="ZZ_mean", which(!names(tab1)%in%c("mean_speed", "mean_trip", "mean_max", "wt_ave_percRSZ", "wt_ave_height", "mean_nfi", "sp", "Extended flight group"))]<-""
+tab1[tab1$sp=="ZZ_mean",]$sp<-tab1[tab1$sp=="ZZ_mean",]$`Extended flight group`
+
+#format H, M, L reporting
+for(i in 1:nrow(tab1))
+{ t1<-NULL
+  t2<-NULL
+  
+  if(!is.na(tab1[i,]$n_H_height)& tab1[i,]$n_H_height>0){t1<-c(t1, paste0("H", tab1[i,]$n_H_height))}
+  if(!is.na(tab1[i,]$n_M_height)& tab1[i,]$n_M_height>0){t1<-c(t1, paste0("M", tab1[i,]$n_M_height))}
+  if(!is.na(tab1[i,]$n_L_height)& tab1[i,]$n_L_height>0){t1<-c(t1, paste0("L", tab1[i,]$n_L_height))}
+  if(is.null(t1)){t1<-""}
+  
+  tab1[i,]$max_height<-paste(t1, collapse=",")
+  
+  if(!is.na(tab1[i,]$n_H_percRSZ)&tab1[i,]$n_H_percRSZ>0){t2<-c(t2, paste0("H", tab1[i,]$n_H_percRSZ))}
+  if(!is.na(tab1[i,]$n_M_percRSZ)&tab1[i,]$n_M_percRSZ>0){t2<-c(t2, paste0("M", tab1[i,]$n_M_percRSZ))}
+  if(!is.na(tab1[i,]$n_L_percRSZ)&tab1[i,]$n_L_percRSZ>0){t2<-c(t2, paste0("L", tab1[i,]$n_L_percRSZ))}
+  if(is.null(t2)){t2<-""}
+  
+  tab1[i,]$max_percRSZ<-paste(t2, collapse=",")
+  }
+
+#format n birds, studies reporting
+
+tab1$n_studies_speed<-paste0(tab1$n_studies_speed, "(",tab1$n_speed, ")" )
+tab1$n_studies_trip<-paste0(tab1$n_studies_trip, "(",tab1$n_trip, ")" )
+tab1$n_studies_max<-paste0(tab1$n_studies_max, "(",tab1$n_max, ")" )
+tab1$n_studies_nfi<-paste0(tab1$n_studies_nfi, "(",tab1$n_nfi, ")" )
+#final na removal
+tab1<-tab1 %>% mutate(across(everything(), gsub, pattern = "NA(NA)", replacement = "", fixed=T))
+tab1<-tab1 %>% mutate(across(everything(), gsub, pattern = "()", replacement = "", fixed=T))
+tab1<-tab1 %>% mutate(across(everything(), gsub, pattern = "±NA", replacement = "", fixed=T))
+tab1<-tab1 %>% mutate(across(everything(), gsub, pattern = "NaN(Inf--Inf)", replacement = "", fixed=T))
+
+tab1<-tab1%>%select(!starts_with(c("LCI", "UCI", "sd", "n_sp", "n_tr", "n_ma" , "n_nf", "min_", "n_H", "n_M", "n_L")))
+
+#write_xlsx(tab1, "outputs/main_table.xlsx")
+
+# need if to stop min max if NAs. Check NFI, some sds not calculated as CIs missing n birds?
 
 #### ***  *** ####
+
+
+# TEMP
+
+## Anecdotal ##
+
+# function 2 splitting data
+meta_split_2<-function(x)
+{
+  t1<-unlist(str_split(x, "@"))
+  t2<-do.call("rbind", (split(t1, ceiling(1:length(t1)/2))))%>%as.data.frame()
+  return(t2)
+}
+
+
+lit_nf<-dat_NAF%>%dplyr::select(c(1:6, starts_with('Anec')))
+names(lit_nf)<-lit_nf[1,];lit_nf<-lit_nf[-1,]
+
+long_nlit<-NULL
+for(i in 1:nrow(lit_nf))
+{
+  fl_speed_temp<-lit_nf[,7:ncol(lit_nf)]
+  sel_sp<-fl_speed_temp[i,which(!is.na(fl_speed_temp[i,]))]
+  if(length(sel_sp)==0){next} # skip sp with no data
+  temp<-do.call("rbind", apply(sel_sp, 2, FUN=meta_split_2))
+  temp<-data.frame(sp=lit_nf[i,]$`Common name`,
+                   study=paste0(unlist(str_split(row.names(temp), "\\)"))[seq(1, ((nrow(temp)*2)-1), 2)], ")"), temp)
+  long_nlit<-rbind(long_nlit, temp)
+}
+
+long_nlit<-left_join(long_nlit, NAF_meta, by=c("study"="ref"))
+
+write_xlsx(long_nlit, "analyses/temp_anecdotalnaf.xlsx")
+
+lit_nf<-dat_FSD%>%dplyr::select(c(1:6, starts_with('Anec')))
+names(lit_nf)<-lit_nf[1,];lit_nf<-lit_nf[-1,]
+
+long_nlit<-NULL
+for(i in 1:nrow(lit_nf))
+{
+  fl_speed_temp<-lit_nf[,7:ncol(lit_nf)]
+  sel_sp<-fl_speed_temp[i,which(!is.na(fl_speed_temp[i,]))]
+  if(length(sel_sp)==0){next} # skip sp with no data
+  temp<-do.call("rbind", apply(sel_sp, 2, FUN=meta_split_2))
+  temp<-data.frame(sp=lit_nf[i,]$`Common name`,
+                   study=paste0(unlist(str_split(row.names(temp), "\\)"))[seq(1, ((nrow(temp)*2)-1), 2)], ")"), temp)
+  long_nlit<-rbind(long_nlit, temp)
+}
+
+long_nlit<-left_join(long_nlit, speed_meta, by=c("study"="ref"))
+
+write_xlsx(long_nlit, "analyses/temp_anecdotalspeed.xlsx")

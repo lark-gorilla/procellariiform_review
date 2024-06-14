@@ -19,7 +19,7 @@ setwd("C:/Users/mmil0049/OneDrive - Monash University/projects/01 southern seabi
 #### *** Read in data and formatting *** ####
 
 #flight height sheet
-dat_FLH<-read_xlsx('C:/Users/mmil0049/Downloads/procellariiform_OWF_review_FORMATTED (21).xlsx', sheet='flight.height', skip=1) # skip top 'checking' row
+dat_FLH<-read_xlsx('C:/Users/mmil0049/Downloads/procellariiform_OWF_review_FORMATTED (22).xlsx', sheet='flight.height', skip=1) # skip top 'checking' row
 
 height_meta<-data.frame(ref=paste(dat_FLH[1,7:ncol(dat_FLH)]), str_split_fixed(dat_FLH[3,7:ncol(dat_FLH)], "@", 5))
 names(height_meta)[2:6]=c("data.type", "place", "country", "marine region", "stage")
@@ -30,7 +30,7 @@ dat_FLH<-dat_FLH[-which(is.na(dat_FLH[,1])),] # remove NA row normally.. at end
 
 
 #flight speed sheet
-dat_FSD<-read_xlsx('C:/Users/mmil0049/Downloads/procellariiform_OWF_review_FORMATTED (21).xlsx', sheet='flight.speed', skip=1) # skip top 'checking' row
+dat_FSD<-read_xlsx('C:/Users/mmil0049/Downloads/procellariiform_OWF_review_FORMATTED (22).xlsx', sheet='flight.speed', skip=1) # skip top 'checking' row
 
 speed_meta<-data.frame(ref=paste(dat_FSD[1,7:ncol(dat_FSD)]), str_split_fixed(dat_FSD[3,7:ncol(dat_FSD)], "@", 5))
 names(speed_meta)[2:6]=c("data.type", "place", "country", "marine region", "stage")
@@ -38,7 +38,7 @@ names(speed_meta)[2:6]=c("data.type", "place", "country", "marine region", "stag
 dat_FSD<-dat_FSD[-c(2,3),] # leaves reference row in there
 
 #NAF sheet
-dat_NAF<-read_xlsx('C:/Users/mmil0049/Downloads/procellariiform_OWF_review_FORMATTED (21).xlsx', sheet='nocturnal.activity', skip=1) # skip top 'checking' row
+dat_NAF<-read_xlsx('C:/Users/mmil0049/Downloads/procellariiform_OWF_review_FORMATTED (22).xlsx', sheet='nocturnal.activity', skip=1) # skip top 'checking' row
 
 NAF_meta<-data.frame(ref=paste(dat_NAF[1,7:ncol(dat_NAF)]), str_split_fixed(dat_NAF[3,7:ncol(dat_NAF)], "@", 5))
 names(NAF_meta)[2:6]=c("data.type", "place", "country", "marine region", "stage")
@@ -508,9 +508,9 @@ MLN_mnsd<-function(x){
   rbind(qe1$est.mean, qe1$est.sd)}
 
 # read in median/min/max sample size sheet 
-med_mi_ma<-read_excel("analyses/median_ss_checking.xlsx")
+med_mi_ma<-read_excel("analyses/median_ss_checking.xlsx")%>%as.data.frame()
 
-med_mi_ma[c("V2", "V3")]<- round(t(apply(med_mi_ma, 1, FUN=MLN_mnsd)),2) # apply function and replace median and NA SD vals with calculatd vals
+med_mi_ma[med_mi_ma$varib%in%c("speed", "trip", "max"),c("V2", "V3")]<- round(t(apply(med_mi_ma[med_mi_ma$varib%in%c("speed", "trip", "max"),], 1, FUN=MLN_mnsd)),2) # apply function and replace median and NA SD vals with calculatd vals
 
 #recombine datasets and export
 
@@ -801,21 +801,90 @@ tab1<-tab1%>%select(!starts_with(c("LCI", "UCI", "sd", "n_sp", "n_tr", "n_ma" , 
 
 #Plots PERC RSZ
 
-#make genus level average
-mn_mean<-perc_height%>%group_by(`Genus common`)%>%summarise(mnmn_perc=mean(ave_perc, na.rm=T))
+#read in results data and remake main table in earlier format
+speed_meta_out<-read_xlsx("outputs/speed_results.xlsx")
+ht_res_out<-read_xlsx("outputs/height_results.xlsx")
+nfi_meta_out<-read_xlsx("outputs/NFI_results.xlsx")
+
+nfi_ready<-read_xlsx("analyses/NFI_ready.xlsx")
+height_ready<-read_xlsx("analyses/height_ready.xlsx")
+speed_ready<-read_xlsx("analyses/speed_ready.xlsx")
+
+
+# join each to extended flight group
+
+flg<-read_xlsx("data/procellariiform_flight_groups.xlsx")
+speed_meta_out<-left_join(speed_meta_out, flg[,c(2,8)], by=join_by("sp"==`Common name`))
+nfi_meta_out<-left_join(nfi_meta_out, flg[,c(2,8)], by=join_by("sp"==`Common name`))
+ht_res_out<-left_join(ht_res_out, flg[,c(2,8)], by=join_by("Common.name"==`Common name`))
+
+speed_ready<-left_join(speed_ready, flg[,c(2,8)], by=join_by("sp"==`Common name`))
+nfi_ready<-left_join(nfi_ready, flg[,c(2,8)], by=join_by("species"==`Common name`))
+height_ready<-left_join(height_ready, flg[,c(2,8)], by=join_by("Common.name"==`Common name`))
+
+# pivot data
+
+piv_speed<-speed_meta_out%>%pivot_wider(id_cols=c(`Extended flight group`, sp), names_from=varib,
+                                        values_from=c(mean, LCI, UCI, sd, n, n_studies, stage, region), names_vary = "slowest")
+
+piv_nfi<-nfi_meta_out%>%pivot_wider(id_cols=c(`Extended flight group`, sp), names_from=varib,
+                                    values_from=c(mean, LCI, UCI, sd, n, n_studies, stage, region), names_vary = "slowest")
+
+piv_height<-ht_res_out%>%pivot_wider(id_cols=c(`Extended flight group`, Common.name), names_from=varib,
+                                     values_from=c(wt_ave, min, max, n_H, n_M, n_L, stage, region), names_vary = "slowest")
+
+# and combine
+piv_res<-full_join(piv_speed, piv_height, by=join_by(sp==Common.name, `Extended flight group`))
+piv_res<-full_join(piv_res, piv_nfi, by=join_by(sp, `Extended flight group`))
+
+#calc mean and sd per flight group and bind back in then re-order
+flg_mn<-piv_res%>%group_by(`Extended flight group`)%>%summarise_all(.fun=function(x){if(is.numeric(x)){mean(x, na.rm = TRUE)}else{NA}})
+
+# make plots for %RSZ, speed and NFI
 
 #order by decreasing risk
-perc_height$`Genus common`<-factor(perc_height$`Genus common`, levels=mn_mean[order(mn_mean$mnmn_perc, decreasing =T),] $ `Genus common`)
-mn_mean$`Genus common`<-factor(mn_mean$`Genus common`, levels=mn_mean[order(mn_mean$mnmn_perc, decreasing =T),] $ `Genus common`)
+flg_mn$`Extended flight group`<-factor(flg_mn$`Extended flight group`, levels=flg_mn[order(flg_mn$mean_nfi, decreasing =T),] $`Extended flight group`)
+piv_nfi$`Extended flight group`<-factor(piv_nfi$`Extended flight group`, levels=levels( flg_mn$`Extended flight group`))
+nfi_ready$`Extended flight group`<-factor(nfi_ready$`Extended flight group`, levels=levels( flg_mn$`Extended flight group`))
+
 
 #Species + genus averaged plot
 
-ggplot()+
-  geom_jitter(data=perc_height, aes(x=`Genus common`, y=ave_perc), height=0, width=0.15, alpha=0.3, size=2)+
-  geom_point(data=mn_mean, aes(x=`Genus common`, y=mnmn_perc), size=4, colour='blue')+
-  scale_y_continuous(breaks=seq(0, 20, 2))+
-  labs(y="Percent time in Rotor Swept Zone")+
+nfi_p<-ggplot()+
+  geom_hline(yintercept=0, size=0.5)+
+  geom_jitter(data=nfi_ready%>%filter(!is.na(mean)), aes(x=`Extended flight group`, y=mean ), height=0, width=0.15, alpha=0.2, size=2)+
+  geom_jitter(data=piv_nfi%>%filter(!is.na(mean_nfi)), aes(x=`Extended flight group`, y=mean_nfi ), height=0, width=0.05, alpha=0.6, size=2, colour='blue')+
+  geom_point(data=flg_mn%>%filter(!is.na(mean_nfi)), aes(x=`Extended flight group`, y=mean_nfi), size=4, colour='blue')+
+  geom_point(data=flg_mn%>%filter(!is.na(mean_nfi)), aes(x=`Extended flight group`, y=mean_nfi), size=4, colour='black', shape=1)+
+  scale_y_continuous(breaks=seq(-1, 1, 0.2), limits=c(-1, 1))+
+  labs(y="Night Flight Index")+
   scale_x_discrete(guide = guide_axis(n.dodge = 2))+theme_bw()+
+  theme(axis.text=element_text(size=14),
+        axis.title=element_text(size=14,face="bold"),
+        axis.title.x = element_blank())
+
+#order by decreasing risk
+flg_mn$`Extended flight group`<-factor(flg_mn$`Extended flight group`, levels=flg_mn[order(flg_mn$mean_speed, decreasing =T),] $`Extended flight group`)
+piv_speed$`Extended flight group`<-factor(piv_speed$`Extended flight group`, levels=levels( flg_mn$`Extended flight group`))
+speed_ready$`Extended flight group`<-factor(speed_ready$`Extended flight group`, levels=levels( flg_mn$`Extended flight group`))
+
+#Species + genus averaged plot
+
+speed_p<-ggplot()+
+  geom_jitter(data=speed_ready%>%filter(varib=="trip"&!is.na(mean)), aes(x=`Extended flight group`, y=mean ), height=0, width=0.15, alpha=0.2, size=2, colour='orange')+
+  geom_jitter(data=piv_speed%>%filter(!is.na(mean_trip)), aes(x=`Extended flight group`, y=mean_trip ), height=0, width=0.05, alpha=0.6, size=2, colour='orange')+
+  geom_point(data=flg_mn%>%filter(!is.na(mean_trip)), aes(x=`Extended flight group`, y=mean_trip), size=4, colour='orange')+
+  geom_point(data=flg_mn%>%filter(!is.na(mean_trip)), aes(x=`Extended flight group`, y=mean_trip), size=4, colour='black', shape=1)+
+  geom_jitter(data=speed_ready%>%filter(varib=="max"&!is.na(mean)), aes(x=`Extended flight group`, y=mean ), height=0, width=0.15, alpha=0.2, size=2, colour='darkred')+
+  geom_jitter(data=piv_speed%>%filter(!is.na(mean_max)), aes(x=`Extended flight group`, y=mean_max ), height=0, width=0.05, alpha=0.6, size=2, colour='darkred')+
+  geom_point(data=flg_mn%>%filter(!is.na(mean_max)), aes(x=`Extended flight group`, y=mean_max), size=4, colour='darkred')+
+  geom_point(data=flg_mn%>%filter(!is.na(mean_max)), aes(x=`Extended flight group`, y=mean_max), size=4, colour='black', shape=1)+
+  geom_jitter(data=speed_ready%>%filter(varib=="speed"&!is.na(mean)), aes(x=`Extended flight group`, y=mean ), height=0, width=0.15, alpha=0.2, size=2, colour='blue')+
+  geom_jitter(data=piv_speed%>%filter(!is.na(mean_speed)), aes(x=`Extended flight group`, y=mean_speed ), height=0, width=0.05, alpha=0.6, size=2, colour='blue')+
+  geom_point(data=flg_mn%>%filter(!is.na(mean_speed)), aes(x=`Extended flight group`, y=mean_speed), size=4, colour='blue')+
+  geom_point(data=flg_mn%>%filter(!is.na(mean_speed)), aes(x=`Extended flight group`, y=mean_speed), size=4, colour='black', shape=1)+
+  labs(y="Speed (m/s)")+
+  scale_x_discrete(guide = guide_axis(n.dodge = 2), drop=F)+theme_bw()+
   theme(axis.text=element_text(size=14),
         axis.title=element_text(size=14,face="bold"),
         axis.title.x = element_blank())

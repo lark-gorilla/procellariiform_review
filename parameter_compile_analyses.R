@@ -120,91 +120,6 @@ app_height_out<-left_join(app_height_out, height_meta, by=c("study"="ref"), mult
 ## WRITE OUT TABLES ##
 #write_xlsx(app_height_out, "analyses/height_ready.xlsx")
 
-# add extra attribs to resutls
-ht_res_out<-left_join(ht_res_out, 
-                      app_height_out%>%group_by(varib, Common.name)%>%summarise(stage=paste(unique(stage),
-                      collapse=", "), region=paste(unique(`marine region`), collapse=", ")),
-                      by=c("varib", "Common.name"))
-
-#anecdotal Max height, added manually
-
-#OLD
-#write_xlsx(height_meta, "outputs/height_meta.xlsx")
-#write_xlsx(perc_height, "outputs/height_perc.xlsx")
-#write_xlsx(fl_height, "outputs/height_absl.xlsx")
-
-#### ---- Plots  ---- ####
-
-#Plots PERC RSZ
-
-#make genus level average
-mn_mean<-perc_height%>%group_by(`Genus common`)%>%summarise(mnmn_perc=mean(ave_perc, na.rm=T))
-
-#order by decreasing risk
-perc_height$`Genus common`<-factor(perc_height$`Genus common`, levels=mn_mean[order(mn_mean$mnmn_perc, decreasing =T),] $ `Genus common`)
-mn_mean$`Genus common`<-factor(mn_mean$`Genus common`, levels=mn_mean[order(mn_mean$mnmn_perc, decreasing =T),] $ `Genus common`)
-
-#Species + genus averaged plot
-
-ggplot()+
-  geom_jitter(data=perc_height, aes(x=`Genus common`, y=ave_perc), height=0, width=0.15, alpha=0.3, size=2)+
-  geom_point(data=mn_mean, aes(x=`Genus common`, y=mnmn_perc), size=4, colour='blue')+
-  scale_y_continuous(breaks=seq(0, 20, 2))+
-  labs(y="Percent time in Rotor Swept Zone")+
-  scale_x_discrete(guide = guide_axis(n.dodge = 2))+theme_bw()+
-  theme(axis.text=element_text(size=14),
-        axis.title=element_text(size=14,face="bold"),
-        axis.title.x = element_blank())
-
-# Species plot to present reasoning for pooling RSZ heights: basically lots of error. Could test with stats if needed
-
-perc_height_nona<-perc_height[-which(is.na(perc_height$ave_perc)),] #remove NA species
-perc_height_nona$ave_perc<-NULL #remove ave column
-
-perc_height_long<-NULL 
-for(i in 1:nrow(perc_height))
-{
-  perc_height_long<-rbind(perc_height_long, data.frame(sp=perc_height_nona[i,]$`Common name`, gen=perc_height_nona[i,]$`Genus common`,
-                                                       str_split_fixed(perc_height_nona[i,7:ncol(perc_height_nona)], "@", 3))) 
-}
-
-perc_height_long<-na.omit(perc_height_long) # rm NAs
-perc_height_long$X1<-as.numeric(perc_height_long$X1) # convert to numeric
-
-perc_height_long$gen<-factor(perc_height_long$gen, levels=mn_mean[order(mn_mean$mnmn_perc, decreasing =T),] $ `Genus common`)
-perc_height_long$sp<-factor(perc_height_long$sp, levels=unique(perc_height_long[order(perc_height_long$gen),] $ sp))
-perc_height_long$X2<-factor(perc_height_long$X2, levels=c("L", "M", "H"))
-
-# one STSH outlier at 50 removed
-ggplot()+
-  geom_point(data=perc_height_long[perc_height_long$X1<26,], aes(x=sp, y=X1, colour=X3, size=X2), shape=1)+
-  labs(y="Percent time in Rotor Swept Zone")+theme_bw()+
-  scale_size_discrete(name = "Study\nconfidence")+
-  scale_colour_discrete(name = "Minimum height\nof RSZ (m)")+
-  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
-
-#Plots - FLIGHT HIEGHT
-
-fl_height_nona<-fl_height[-which(is.na(fl_height$ave_fl_height)),]
-
-fl_height_nona$`Common name`<-factor(fl_height_nona$`Common name`, levels=fl_height_nona[order(fl_height_nona$ave_fl_height, decreasing =T),] $ `Common name`)
-fl_height_nona$Studies<-rowSums(fl_height_nona%>%select(c('n_H', 'n_M', 'n_L')))
-
-ggplot()+
-  geom_point(data=fl_height_nona, aes(x=`Common name`, y=ave_fl_height, colour=`Genus common`, shape=as.factor(Studies)), size=3)+
-  geom_text_repel(data=fl_height_nona, aes(x=`Common name`, y=ave_fl_height, label= `Common name`), size=5)+
-  scale_y_continuous(breaks=seq(0, 12, 1))+
-  labs(y="Mean flight height (m)")+
-  scale_shape_discrete(name="n Studies")+
-  scale_x_discrete(guide = guide_axis(n.dodge = 2))+theme_bw()+
-  theme(axis.text=element_text(size=12),
-        axis.title=element_text(size=14,face="bold"),
-        axis.title.x = element_blank(),
-        axis.text.x = element_blank(),
-        legend.position = c(0.9, 0.8), 
-        legend.text = element_text(size=12))
-#### ---- Plots End  ---- ####
-
 #### ***  *** ####
 
 #### *** Nocturnal Activity Factor review *** ####
@@ -880,9 +795,79 @@ tab1<-tab1%>%select(!starts_with(c("LCI", "UCI", "sd", "n_sp", "n_tr", "n_ma" , 
 
 #write_xlsx(tab1, "outputs/main_table.xlsx")
 
-# need if to stop min max if NAs. Check NFI, some sds not calculated as CIs missing n birds?
-
 #### ***  *** ####
+
+#### ---- Plots  ---- ####
+
+#Plots PERC RSZ
+
+#make genus level average
+mn_mean<-perc_height%>%group_by(`Genus common`)%>%summarise(mnmn_perc=mean(ave_perc, na.rm=T))
+
+#order by decreasing risk
+perc_height$`Genus common`<-factor(perc_height$`Genus common`, levels=mn_mean[order(mn_mean$mnmn_perc, decreasing =T),] $ `Genus common`)
+mn_mean$`Genus common`<-factor(mn_mean$`Genus common`, levels=mn_mean[order(mn_mean$mnmn_perc, decreasing =T),] $ `Genus common`)
+
+#Species + genus averaged plot
+
+ggplot()+
+  geom_jitter(data=perc_height, aes(x=`Genus common`, y=ave_perc), height=0, width=0.15, alpha=0.3, size=2)+
+  geom_point(data=mn_mean, aes(x=`Genus common`, y=mnmn_perc), size=4, colour='blue')+
+  scale_y_continuous(breaks=seq(0, 20, 2))+
+  labs(y="Percent time in Rotor Swept Zone")+
+  scale_x_discrete(guide = guide_axis(n.dodge = 2))+theme_bw()+
+  theme(axis.text=element_text(size=14),
+        axis.title=element_text(size=14,face="bold"),
+        axis.title.x = element_blank())
+
+# Species plot to present reasoning for pooling RSZ heights: basically lots of error. Could test with stats if needed
+
+perc_height_nona<-perc_height[-which(is.na(perc_height$ave_perc)),] #remove NA species
+perc_height_nona$ave_perc<-NULL #remove ave column
+
+perc_height_long<-NULL 
+for(i in 1:nrow(perc_height))
+{
+  perc_height_long<-rbind(perc_height_long, data.frame(sp=perc_height_nona[i,]$`Common name`, gen=perc_height_nona[i,]$`Genus common`,
+                                                       str_split_fixed(perc_height_nona[i,7:ncol(perc_height_nona)], "@", 3))) 
+}
+
+perc_height_long<-na.omit(perc_height_long) # rm NAs
+perc_height_long$X1<-as.numeric(perc_height_long$X1) # convert to numeric
+
+perc_height_long$gen<-factor(perc_height_long$gen, levels=mn_mean[order(mn_mean$mnmn_perc, decreasing =T),] $ `Genus common`)
+perc_height_long$sp<-factor(perc_height_long$sp, levels=unique(perc_height_long[order(perc_height_long$gen),] $ sp))
+perc_height_long$X2<-factor(perc_height_long$X2, levels=c("L", "M", "H"))
+
+# one STSH outlier at 50 removed
+ggplot()+
+  geom_point(data=perc_height_long[perc_height_long$X1<26,], aes(x=sp, y=X1, colour=X3, size=X2), shape=1)+
+  labs(y="Percent time in Rotor Swept Zone")+theme_bw()+
+  scale_size_discrete(name = "Study\nconfidence")+
+  scale_colour_discrete(name = "Minimum height\nof RSZ (m)")+
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+
+#Plots - FLIGHT HIEGHT
+
+fl_height_nona<-fl_height[-which(is.na(fl_height$ave_fl_height)),]
+
+fl_height_nona$`Common name`<-factor(fl_height_nona$`Common name`, levels=fl_height_nona[order(fl_height_nona$ave_fl_height, decreasing =T),] $ `Common name`)
+fl_height_nona$Studies<-rowSums(fl_height_nona%>%select(c('n_H', 'n_M', 'n_L')))
+
+ggplot()+
+  geom_point(data=fl_height_nona, aes(x=`Common name`, y=ave_fl_height, colour=`Genus common`, shape=as.factor(Studies)), size=3)+
+  geom_text_repel(data=fl_height_nona, aes(x=`Common name`, y=ave_fl_height, label= `Common name`), size=5)+
+  scale_y_continuous(breaks=seq(0, 12, 1))+
+  labs(y="Mean flight height (m)")+
+  scale_shape_discrete(name="n Studies")+
+  scale_x_discrete(guide = guide_axis(n.dodge = 2))+theme_bw()+
+  theme(axis.text=element_text(size=12),
+        axis.title=element_text(size=14,face="bold"),
+        axis.title.x = element_blank(),
+        axis.text.x = element_blank(),
+        legend.position = c(0.9, 0.8), 
+        legend.text = element_text(size=12))
+#### ---- Plots End  ---- ####
 
 
 # TEMP

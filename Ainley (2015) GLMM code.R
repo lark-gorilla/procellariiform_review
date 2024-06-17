@@ -44,28 +44,19 @@ ggplot(data=rand_effz_table)+ geom_line(aes(x=wind, y=dev_from_av, colour=Group)
   scale_y_continuous(breaks=seq(-10, 8))
 
 ggplot(data=rand_effz_table%>%filter(Group%in%c(
-  
-  
-   "Diving shearwaters","Giant petrels",
-  "Frigate petrels" ,  "Fulmars"  ,            "Large gadfly petrels" ,      
-    "Manx-type shearwaters" ,      "Oceanites"   ,               
-  "Oceanodroma",
-  "Prions"  ,  "Small albatrosses"  ,   "Small gadfly petrels",                
-  "Surface-feeding shearwaters" 
-)))+ geom_line(aes(x=wind, y=dev_from_av, colour=Group))+
+   "Diving shearwaters","Giant petrels","Frigate petrels" ,  "Fulmars"  ,   "Large gadfly petrels" ,      
+    "Manx-type shearwaters" ,   "Oceanites"   ,   "Oceanodroma", "Prions"  ,  "Small albatrosses"  ,
+   "Small gadfly petrels","Surface-feeding shearwaters" )))+ geom_line(aes(x=wind, y=dev_from_av, colour=Group))+
   scale_y_continuous(breaks=seq(-10, 8))
 # think the above plot is pretty much Fig 5
 
 # now create predictions for database
 rand_effz_table
 
-rand_effz_table$n_antarctic<-ifelse(rand_effz_table$n_antarctic>0, Intercept, NA)
-rand_effz_table$n_california <-ifelse(rand_effz_table$n_california >0, Intercept+California.Current, NA)
-rand_effz_table$n_etp<-ifelse(rand_effz_table$n_etp>0, Intercept+ETP, NA)
-rand_effz_table$n_peru <-ifelse(rand_effz_table$n_peru >0, Intercept+Peru.Current, NA)
-
-rand_effz_table$region_intercept<-rowMeans(rand_effz_table[c("n_antarctic", "n_california", "n_etp", "n_peru")], na.rm=T)
-
+# previously using more intuitive region intercept based on average reiong intercepts only from where bids were observed but results
+# were too impacted by region so just taking mean over all regions.
+rand_effz_table$region_intercept<-mean(c(Intercept,(Intercept+California.Current),(Intercept+ETP),(Intercept+Peru.Current)))
+                                      
 rand_effz_final1<-rand_effz_table
 rand_effz_final2<-rand_effz_table
 rand_effz_final3<-rand_effz_table
@@ -91,11 +82,11 @@ geom_hline(aes(yintercept =0.5), linetype=3)+xlab("Wind speed m/s")+ylab("Probab
 
 # extract results
 
-out_dat<-rand_effz_final%>%filter(wind%in%c(10, 30))%>%group_by(Group, wind)%>%summarise(mean_pred=mean(pred), sd_pred=sd(pred))
+out_dat<-rand_effz_final%>%filter(wind%in%c(5,15,25))%>%group_by(Group, wind)%>%summarise(mean_pred=mean(pred), sd_pred=sd(pred))
 
 library(writexl)
   
-write_xlsx(out_dat, "C:/Users/mmil0049/OneDrive - Monash University/projects/01 southern seabird OWF review/analyses/Spear_GLMM/probs_at_10_30_alt.xlsx")  
+write_xlsx(out_dat, "C:/Users/mmil0049/OneDrive - Monash University/projects/01 southern seabird OWF review/analyses/Spear_GLMM/probs_at_5_15_25_alt.xlsx")  
 
 
 #UNDERSTANDING SHIT

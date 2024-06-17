@@ -839,6 +839,7 @@ piv_res<-full_join(piv_res, piv_nfi, by=join_by(sp, `Extended flight group`))
 
 #calc mean and sd per flight group and bind back in then re-order
 flg_mn<-piv_res%>%group_by(`Extended flight group`)%>%summarise_all(.fun=function(x){if(is.numeric(x)){mean(x, na.rm = TRUE)}else{NA}})
+flg_sd<-piv_res%>%group_by(`Extended flight group`)%>%summarise_all(.fun=function(x){if(is.numeric(x)){sd(x, na.rm = TRUE)}else{NA}})
 
 # make plots for %RSZ, speed and NFI
 
@@ -1015,3 +1016,46 @@ for(i in 1:nrow(lit_nf))
 long_nlit<-left_join(long_nlit, speed_meta, by=c("study"="ref"))
 
 write_xlsx(long_nlit, "analyses/temp_anecdotalspeed.xlsx")
+
+# trial 3D plot, hmm hard to see whats going on
+
+library(plot3D)
+
+# greyish background for the boxtype (bty = "g") 
+scatter3D(x=flg_mn$mean_speed, y=flg_mn$mean_nfi, z=flg_mn$wt_ave_percRSZ,
+           bty = "g",phi=40, theta=35,
+          pch = 20, cex = 2, ticktype = "detailed")
+
+# add text
+text3D(x=flg_mn$mean_speed, y=flg_mn$mean_nfi, z=flg_mn$wt_ave_percRSZ,
+       colkey = FALSE, add = TRUE, 
+       labels = flg_mn$`Extended flight group`, col = c("black"))
+
+# ammend CI columns to reflect SD between species within group (ie of reported mean)
+flg_mn$LCI_speed<-flg_mn$mean_speed-flg_sd$mean_speed
+flg_mn$UCI_speed<-flg_mn$mean_speed+flg_sd$mean_speed
+flg_mn$n_L_percRSZ <-flg_mn$wt_ave_percRSZ-flg_sd$wt_ave_percRSZ
+flg_mn$n_H_percRSZ<-flg_mn$wt_ave_percRSZ+flg_sd$wt_ave_percRSZ
+
+ggplot(data=flg_mn)+
+  geom_errorbar(aes(ymin=n_L_percRSZ, ymax=n_H_percRSZ, x=mean_speed), alpha=0.5)+
+  geom_errorbarh(aes(xmin=LCI_speed, xmax=UCI_speed, y=wt_ave_percRSZ), alpha=0.5)+
+  geom_point(aes(x=mean_speed, y=wt_ave_percRSZ, colour=mean_nfi), size=3)+
+  geom_point(aes(x=mean_speed, y=wt_ave_percRSZ), size=3, shape=1)+
+
+  geom_text_repel(aes(x=mean_speed, y=wt_ave_percRSZ, label= `Extended flight group`),
+                  size=3.5)+
+  scale_colour_gradient2(
+    low = "yellow",
+    mid = "lightgrey",
+    high = "black",
+    midpoint = 0,
+    space = "Lab",
+    na.value = "grey50",
+    guide = "colourbar",
+    aesthetics = "colour")+
+  scale_y_continuous(breaks=seq(0, 20, 2))+theme_bw()+
+  labs(y="Mean time in Rotor Swept Zone (%)", x="Mean flight speed (m/s)",
+       colour="Mean NFI")+
+  theme(        legend.position = c(0.1, 0.8), 
+        legend.text = element_text(size=12))

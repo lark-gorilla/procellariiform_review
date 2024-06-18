@@ -82,11 +82,11 @@ geom_hline(aes(yintercept =0.5), linetype=3)+xlab("Wind speed m/s")+ylab("Probab
 
 # extract results
 
-out_dat<-rand_effz_final%>%filter(wind%in%c(5,15,25))%>%group_by(Group, wind)%>%summarise(mean_pred=mean(pred), sd_pred=sd(pred))
+out_dat<-rand_effz_final%>%group_by(Group)%>%summarise(mean_pred=mean(pred), sd_pred=sd(pred))
 
 library(writexl)
   
-write_xlsx(out_dat, "C:/Users/mmil0049/OneDrive - Monash University/projects/01 southern seabird OWF review/analyses/Spear_GLMM/probs_at_5_15_25_alt.xlsx")  
+write_xlsx(out_dat, "C:/Users/mmil0049/OneDrive - Monash University/projects/01 southern seabird OWF review/analyses/Spear_GLMM/probs_mean0-30_alt.xlsx")  
 
 
 #UNDERSTANDING SHIT

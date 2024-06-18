@@ -19,7 +19,7 @@ setwd("C:/Users/mmil0049/OneDrive - Monash University/projects/01 southern seabi
 #### *** Read in data and formatting *** ####
 
 #flight height sheet
-dat_FLH<-read_xlsx('C:/Users/mmil0049/Downloads/procellariiform_OWF_review_FORMATTED (22).xlsx', sheet='flight.height', skip=1) # skip top 'checking' row
+dat_FLH<-read_xlsx('C:/Users/mmil0049/Downloads/procellariiform_OWF_review_FORMATTED (23).xlsx', sheet='flight.height', skip=1) # skip top 'checking' row
 
 height_meta<-data.frame(ref=paste(dat_FLH[1,7:ncol(dat_FLH)]), str_split_fixed(dat_FLH[3,7:ncol(dat_FLH)], "@", 5))
 names(height_meta)[2:6]=c("data.type", "place", "country", "marine region", "stage")
@@ -30,7 +30,7 @@ dat_FLH<-dat_FLH[-which(is.na(dat_FLH[,1])),] # remove NA row normally.. at end
 
 
 #flight speed sheet
-dat_FSD<-read_xlsx('C:/Users/mmil0049/Downloads/procellariiform_OWF_review_FORMATTED (22).xlsx', sheet='flight.speed', skip=1) # skip top 'checking' row
+dat_FSD<-read_xlsx('C:/Users/mmil0049/Downloads/procellariiform_OWF_review_FORMATTED (23).xlsx', sheet='flight.speed', skip=1) # skip top 'checking' row
 
 speed_meta<-data.frame(ref=paste(dat_FSD[1,7:ncol(dat_FSD)]), str_split_fixed(dat_FSD[3,7:ncol(dat_FSD)], "@", 5))
 names(speed_meta)[2:6]=c("data.type", "place", "country", "marine region", "stage")
@@ -38,7 +38,7 @@ names(speed_meta)[2:6]=c("data.type", "place", "country", "marine region", "stag
 dat_FSD<-dat_FSD[-c(2,3),] # leaves reference row in there
 
 #NAF sheet
-dat_NAF<-read_xlsx('C:/Users/mmil0049/Downloads/procellariiform_OWF_review_FORMATTED (22).xlsx', sheet='nocturnal.activity', skip=1) # skip top 'checking' row
+dat_NAF<-read_xlsx('C:/Users/mmil0049/Downloads/procellariiform_OWF_review_FORMATTED (23).xlsx', sheet='nocturnal.activity', skip=1) # skip top 'checking' row
 
 NAF_meta<-data.frame(ref=paste(dat_NAF[1,7:ncol(dat_NAF)]), str_split_fixed(dat_NAF[3,7:ncol(dat_NAF)], "@", 5))
 names(NAF_meta)[2:6]=c("data.type", "place", "country", "marine region", "stage")
@@ -75,8 +75,6 @@ wt_mn<-function(x){
 perc_height_out<-data.frame(varib="percRSZ", `Common name`=perc_height$`Common name`,
                    do.call("rbind", apply(perc_height, 1, FUN=wt_mn)),
                    do.call("rbind", apply(perc_height, 1, FUN=n_conf)))
-
-
   
 ## FLIGHT HEIGHT ##
 
@@ -117,8 +115,18 @@ app_height_out<-app_height_out%>%arrange("varib", "study")
 
 app_height_out<-left_join(app_height_out, height_meta, by=c("study"="ref"), multiple='first') # join in meta data
 
+# add extra attribs to resutls
+
+ht_res_out<-left_join(ht_res_out, 
+                      app_height_out%>%group_by(varib, Common.name)%>%summarise(stage=paste(unique(stage),
+                      collapse=", "), region=paste(unique(`marine region`), collapse=", ")),
+                      by=c("varib", "Common.name"))
+
+#anecdotal Max height, added manually
+
 ## WRITE OUT TABLES ##
 #write_xlsx(app_height_out, "analyses/height_ready.xlsx")
+#write_xlsx(ht_res_out, "outputs/height_results.xlsx")
 
 #### ***  *** ####
 
@@ -612,7 +620,6 @@ for(i in unique(speed_ready$varib))
 
 #### ***  *** ####
 
-
 #### *** Combine results tables into main paper table *** #### 
 
 #read in results data
@@ -799,7 +806,7 @@ tab1<-tab1%>%select(!starts_with(c("LCI", "UCI", "sd", "n_sp", "n_tr", "n_ma" , 
 
 #### ---- Plots  ---- ####
 
-#Plots PERC RSZ
+# Main Fig1
 
 #read in results data and remake main table in earlier format
 speed_meta_out<-read_xlsx("outputs/speed_results.xlsx")
@@ -903,7 +910,6 @@ rsz_p<-ggplot()+
   geom_jitter(data=height_ready%>%filter(varib=="percRSZ"& !is.na(X1)), aes(x=`Extended flight group`, y=as.numeric(X1), colour=X2 ), height=0, width=0.2, alpha=0.4, size=2)+
   geom_point(data=flg_mn%>%filter(!is.na(wt_ave_percRSZ)), aes(x=`Extended flight group`, y=wt_ave_percRSZ), size=4, colour='black', shape=1)+
   labs(y="Time in Rotor Swept Zone (%)")+
-  scale_y_continuous(breaks=seq(0, 25, 2),limits=c(0, 25))+
   scale_color_manual(name = "Study accuracy",
                      values = c( "H" = "blue", "M" = "orange", "L" = "darkred"),
                      labels = c( "High","Low", "Medium"))+
@@ -912,33 +918,67 @@ rsz_p<-ggplot()+
         axis.title=element_text(size=10,face="bold"),
         axis.title.x = element_blank(), legend.position=c(.9,.8))
 
+rsz_p22222<-ggplot()+
+  geom_jitter(data=height_ready%>%filter(varib=="percRSZ"& !is.na(X1)), aes(x=`Extended flight group`, y=as.numeric(X1), colour=X2 ), height=0, width=0.2, alpha=0.4, size=2)+
+     geom_point(data=flg_mn%>%filter(!is.na(wt_ave_percRSZ)), aes(x=`Extended flight group`, y=wt_ave_percRSZ), size=4, colour='black', shape=1)+
+    labs(y="Time in Rotor Swept Zone (%)")+
+     scale_color_manual(name = "Study accuracy",
+                                              values = c( "H" = "blue", "M" = "orange", "L" = "darkred"),
+                                              labels = c( "High","Low", "Medium"))+
+     scale_x_discrete(guide = guide_axis(n.dodge = 2))+theme_bw()+
+     theme(axis.text=element_text(size=10),
+                   axis.title=element_text(size=10,face="bold"),
+                    axis.title.x = element_blank(), legend.position=c(.9,.8))
+
 
 library(patchwork)
 speed_p/nfi_p/rsz_p
 
+# Main Fig 2
+
+# ammend CI columns to reflect SD between species within group (ie of reported mean)
+flg_mn$LCI_speed<-flg_mn$mean_speed-flg_sd$mean_speed
+flg_mn$UCI_speed<-flg_mn$mean_speed+flg_sd$mean_speed
+flg_mn$n_L_percRSZ <-flg_mn$wt_ave_percRSZ-flg_sd$wt_ave_percRSZ
+flg_mn$n_H_percRSZ<-flg_mn$wt_ave_percRSZ+flg_sd$wt_ave_percRSZ
+
+ggplot(data=flg_mn)+
+  geom_errorbar(aes(ymin=n_L_percRSZ, ymax=n_H_percRSZ, x=mean_speed), alpha=0.5)+
+  geom_errorbarh(aes(xmin=LCI_speed, xmax=UCI_speed, y=wt_ave_percRSZ), alpha=0.5)+
+  geom_point(aes(x=mean_speed, y=wt_ave_percRSZ, colour=mean_nfi), size=3)+
+  geom_point(aes(x=mean_speed, y=wt_ave_percRSZ), size=3, shape=1)+
+  
+  geom_text_repel(aes(x=mean_speed, y=wt_ave_percRSZ, label= `Extended flight group`),
+                  size=3.5)+
+  scale_colour_gradient2(
+    low = "yellow",
+    mid = "lightgrey",
+    high = "black",
+    midpoint = 0,
+    space = "Lab",
+    na.value = "grey50",
+    guide = "colourbar",
+    aesthetics = "colour")+theme_bw()+
+  labs(y="Mean time in Rotor Swept Zone (%)", x="Mean flight speed (m/s)",
+       colour="Mean NFI")+
+  theme(        legend.position = c(0.1, 0.8), 
+                legend.text = element_text(size=12))
+
+
+
+# Appendix fig 
 # Species plot to present reasoning for pooling RSZ heights: basically lots of error. Could test with stats if needed
+# runs from above code to make main fig 1
 
-perc_height_nona<-perc_height[-which(is.na(perc_height$ave_perc)),] #remove NA species
-perc_height_nona$ave_perc<-NULL #remove ave column
-
-perc_height_long<-NULL 
-for(i in 1:nrow(perc_height))
-{
-  perc_height_long<-rbind(perc_height_long, data.frame(sp=perc_height_nona[i,]$`Common name`, gen=perc_height_nona[i,]$`Genus common`,
-                                                       str_split_fixed(perc_height_nona[i,7:ncol(perc_height_nona)], "@", 3))) 
-}
-
-perc_height_long<-na.omit(perc_height_long) # rm NAs
-perc_height_long$X1<-as.numeric(perc_height_long$X1) # convert to numeric
-
-perc_height_long$gen<-factor(perc_height_long$gen, levels=mn_mean[order(mn_mean$mnmn_perc, decreasing =T),] $ `Genus common`)
-perc_height_long$sp<-factor(perc_height_long$sp, levels=unique(perc_height_long[order(perc_height_long$gen),] $ sp))
-perc_height_long$X2<-factor(perc_height_long$X2, levels=c("L", "M", "H"))
+height_ready$Common.name<-factor(height_ready$Common.name, levels=unique(height_ready[order(height_ready$`Extended flight group`),] $Common.name))
+height_ready$X2<-factor(height_ready$X2, levels=c("L", "M", "H"))
 
 # one STSH outlier at 50 removed
 ggplot()+
-  geom_point(data=perc_height_long[perc_height_long$X1<26,], aes(x=sp, y=X1, colour=X3, size=X2), shape=1)+
+  geom_point(data=height_ready%>%filter(varib=="percRSZ" & X1<26 & !is.na(X1)), aes(x=Common.name, y=as.numeric(X1), colour=X3, size=X2), shape=1)+
   labs(y="Percent time in Rotor Swept Zone")+theme_bw()+
+  scale_y_continuous(breaks=seq(0, 25, 2))+
+  scale_x_discrete(drop=F)+
   scale_size_discrete(name = "Study\nconfidence")+
   scale_colour_discrete(name = "Minimum height\nof RSZ (m)")+
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
@@ -1031,31 +1071,3 @@ text3D(x=flg_mn$mean_speed, y=flg_mn$mean_nfi, z=flg_mn$wt_ave_percRSZ,
        colkey = FALSE, add = TRUE, 
        labels = flg_mn$`Extended flight group`, col = c("black"))
 
-# ammend CI columns to reflect SD between species within group (ie of reported mean)
-flg_mn$LCI_speed<-flg_mn$mean_speed-flg_sd$mean_speed
-flg_mn$UCI_speed<-flg_mn$mean_speed+flg_sd$mean_speed
-flg_mn$n_L_percRSZ <-flg_mn$wt_ave_percRSZ-flg_sd$wt_ave_percRSZ
-flg_mn$n_H_percRSZ<-flg_mn$wt_ave_percRSZ+flg_sd$wt_ave_percRSZ
-
-ggplot(data=flg_mn)+
-  geom_errorbar(aes(ymin=n_L_percRSZ, ymax=n_H_percRSZ, x=mean_speed), alpha=0.5)+
-  geom_errorbarh(aes(xmin=LCI_speed, xmax=UCI_speed, y=wt_ave_percRSZ), alpha=0.5)+
-  geom_point(aes(x=mean_speed, y=wt_ave_percRSZ, colour=mean_nfi), size=3)+
-  geom_point(aes(x=mean_speed, y=wt_ave_percRSZ), size=3, shape=1)+
-
-  geom_text_repel(aes(x=mean_speed, y=wt_ave_percRSZ, label= `Extended flight group`),
-                  size=3.5)+
-  scale_colour_gradient2(
-    low = "yellow",
-    mid = "lightgrey",
-    high = "black",
-    midpoint = 0,
-    space = "Lab",
-    na.value = "grey50",
-    guide = "colourbar",
-    aesthetics = "colour")+
-  scale_y_continuous(breaks=seq(0, 20, 2))+theme_bw()+
-  labs(y="Mean time in Rotor Swept Zone (%)", x="Mean flight speed (m/s)",
-       colour="Mean NFI")+
-  theme(        legend.position = c(0.1, 0.8), 
-        legend.text = element_text(size=12))

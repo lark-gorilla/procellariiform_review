@@ -53,7 +53,7 @@ ggplot(data=rand_effz_table%>%filter(Group%in%c(
 # now create predictions for database
 rand_effz_table
 
-# previously using more intuitive region intercept based on average reiong intercepts only from where bids were observed but results
+# previously using more intuitive region intercept based on average region intercepts only from where birds were observed but results
 # were too impacted by region so just taking mean over all regions.
 rand_effz_table$region_intercept<-mean(c(Intercept,(Intercept+California.Current),(Intercept+ETP),(Intercept+Peru.Current)))
                                       

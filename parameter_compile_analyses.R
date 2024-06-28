@@ -405,9 +405,13 @@ for(j in unique(nfi_ready$sp))
                            out_temp<-data.frame(sp_var[1,1:2],mean=(plogis(m.mean$TE.random)*2)-1,
                                                 LCI=(plogis(m.mean$lower.random)*2)-1,
                                                 UCI=(plogis(m.mean$upper.random)*2)-1,
-                                                sd=NA, n=sum(as.numeric(sp_var$n)), 
+                                                sd=NA,
+                                                n=sum(as.numeric(sp_var$n)), 
                                                 n_studies= length(unique(sp_var$study)), stage=paste(unique(sp_var$stage), collapse=", "), region=paste(unique(sp_var$`marine region`), collapse=", "))
-                         }
+                           
+                           # calculate SDs from CIs and n https://handbook-5-1.cochrane.org/chapter_7/7_7_3_2_obtaining_standard_deviations_from_standard_errors_and.htm
+                           out_temp$sd<-sqrt(m.mean$k)*(out_temp$UCI- out_temp$LCI)/3.92
+                           }
   nfi_meta_out<-rbind(nfi_meta_out, out_temp)
 }
 
@@ -606,8 +610,13 @@ for(i in unique(speed_ready$varib))
     #print(forest(m.mean))
     #readline("")
     
-    out_temp<-data.frame(sp_var[1,1:2],mean=exp(m.mean$TE.random), LCI=exp(m.mean$lower.random), UCI=exp(m.mean$upper.random), sd=NA, n=sum(m.mean$n), 
-                         n_studies= length(unique(sp_var$study)), stage=paste(unique(sp_var$stage), collapse=", "), region=paste(unique(sp_var$`marine region`), collapse=", "))
+    out_temp<-data.frame(sp_var[1,1:2],mean=exp(m.mean$TE.random), LCI=exp(m.mean$lower.random), UCI=exp(m.mean$upper.random),
+                         sd=NA, n=sum(m.mean$n), 
+                         n_studies= length(unique(sp_var$study)), stage=paste(unique(sp_var$stage), collapse=", "),
+                         region=paste(unique(sp_var$`marine region`), collapse=", "))
+    
+    # calculate SDs from CIs and n https://handbook-5-1.cochrane.org/chapter_7/7_7_3_2_obtaining_standard_deviations_from_standard_errors_and.htm
+        out_temp$sd<-sqrt(m.mean$k)*(out_temp$UCI- out_temp$LCI)/3.92
     }
     speed_meta_out<-rbind(speed_meta_out, out_temp)
   }
@@ -682,14 +691,7 @@ piv_res<-piv_res%>%arrange(`Extended flight group`, sp)
 # make two tables, one near raw of piv_res + anecdotal/max Height for supp; one, trimmed piv_res for main table
 
 # main table
-
 tab1<-piv_res
-# calculate SDs from CIs and n https://handbook-5-1.cochrane.org/chapter_7/7_7_3_2_obtaining_standard_deviations_from_standard_errors_and.htm
-
-tab1$sd_speed<-ifelse(is.na(tab1$sd_speed),sqrt(tab1$n_speed)*(tab1$UCI_speed- tab1$LCI_speed)/3.92 ,tab1$sd_speed)
-tab1$sd_trip<-ifelse(is.na(tab1$sd_trip),sqrt(tab1$n_trip)*(tab1$UCI_trip- tab1$LCI_trip)/3.92 ,tab1$sd_trip)
-tab1$sd_max<-ifelse(is.na(tab1$sd_max),sqrt(tab1$n_max)*(tab1$UCI_max- tab1$LCI_max)/3.92 ,tab1$sd_max)
-tab1$sd_nfi<-ifelse(is.na(tab1$sd_nfi),sqrt(as.numeric(tab1$n_nfi))*(tab1$UCI_nfi- tab1$LCI_nfi)/3.92 ,tab1$sd_nfi)
 
 #code regions
 tab1<-tab1 %>% mutate(across(c(region_speed, region_trip, region_max, region_percRSZ, region_height, region_nfi), gsub, pattern = "North Atlantic", replacement = "NAt"))

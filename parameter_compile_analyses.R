@@ -828,7 +828,7 @@ nfi_meta_out<-left_join(nfi_meta_out, flg[,c(2,8)], by=join_by("sp"==`Common nam
 ht_res_out<-left_join(ht_res_out, flg[,c(2,8)], by=join_by("Common.name"==`Common name`))
 
 speed_ready<-left_join(speed_ready, flg[,c(2,8)], by=join_by("sp"==`Common name`))
-nfi_ready<-left_join(nfi_ready, flg[,c(2,8)], by=join_by("species"==`Common name`))
+nfi_ready<-left_join(nfi_ready, flg[,c(2,8)], by=join_by("sp"==`Common name`))
 height_ready<-left_join(height_ready, flg[,c(2,8)], by=join_by("Common.name"==`Common name`))
 
 # pivot data
@@ -972,6 +972,23 @@ ggplot(data=flg_mn)+
 # Species plot to present reasoning for pooling RSZ heights: basically lots of error. Could test with stats if needed
 # runs from above code to make main fig 1
 
+# test to see if %time in RSZ increases with lower minimum tip height
+library(lme4)
+library(performance)
+
+m1<-lmer(as.numeric(X1)~as.numeric(X3)+(1|study)+(1|`Extended flight group`), data=height_ready%>%filter(study%in%c(names(which(table(height_ready$study)>2)))))
+check_model(m1)
+
+library(lmerTest)
+anova(m1)
+
+m2<-glmer(cbind(ceiling(as.numeric(X1)), 100-ceiling(as.numeric(X1)))~X3+(1|study),
+          data=height_ready%>%filter(study%in%c(names(which(table(height_ready$study)>2)))), family='binomial')
+check_model(m2)
+
+
+
+# make sup fig plot
 height_ready$Common.name<-factor(height_ready$Common.name, levels=unique(height_ready[order(height_ready$`Extended flight group`),] $Common.name))
 height_ready$X2<-factor(height_ready$X2, levels=c("L", "M", "H"))
 

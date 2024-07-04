@@ -629,6 +629,58 @@ for(i in unique(speed_ready$varib))
 
 #### ***  *** ####
 
+nfi_ready<-read_xlsx("analyses/NFI_ready.xlsx")
+height_ready<-read_xlsx("analyses/height_ready.xlsx")
+speed_ready<-read_xlsx("analyses/speed_ready.xlsx")
+
+#### *** Make first review summary table *** #### 
+
+# join each to extended flight group
+nfi_ready<-read_xlsx("analyses/NFI_ready.xlsx")
+height_ready<-read_xlsx("analyses/height_ready.xlsx")
+speed_ready<-read_xlsx("analyses/speed_ready.xlsx")
+
+flg<-read_xlsx("data/procellariiform_flight_groups.xlsx")
+
+speed_ready<-left_join(speed_ready, flg[,c(2,8)], by=join_by("sp"==`Common name`))
+nfi_ready<-left_join(nfi_ready, flg[,c(2,8)], by=join_by("sp"==`Common name`))
+height_ready<-left_join(height_ready, flg[,c(2,8)], by=join_by("Common.name"==`Common name`))
+names(height_ready)[2]<-"sp"
+
+tab1_dat<-rbind(speed_ready%>%select(varib,sp, study, data.type,`Extended flight group`)%>%mutate(id="speed"),
+                height_ready%>%select(varib,sp, study, data.type,`Extended flight group`)%>%mutate(id="height"),
+                nfi_ready%>%select(varib,sp, study, data.type,`Extended flight group`)%>%mutate(id="nfi"))
+
+
+tab1_dat$data.group<-"Vessel-based"
+
+tab1_dat[tab1_dat$data.type%in% c("GPS" ,   "PTT",    "GPS-PTT"  ,   "GPS and PTT" ,                   
+ "PPT"  ,  "GPS & PTT" ,     "Barometric pressure sensor" ,"Geolocator" , "GPS/Geolocator",                   
+ "Wet-dry logger"  ,   "Wet-dry loggers" ,  "Activity loggers",   "GLS" ,                           
+   "Immersion loggers"  ,    "Temperature logger" ,"TDR" ),]$data.group<-"Bio-logger"
+
+tab1_dat[tab1_dat$data.type=="Literature review",]$data.group<-"Literature review"
+
+tab1_dat[tab1_dat$data.type%in% c("Land based ornithodolite"  , "land based radar"  ,"Infrared binoculars and markers",
+                                  "Aerial photogrammetry"   ,  "Ornithodolite from headland" ),]$data.group<-"Aerial/land-based"
+
+tab1_dat<-tab1_dat %>%
+  pivot_wider(names_from = data.group, values_from=data.group, values_fn =~1, values_fill = 0)
+  
+tab1_sum_1<-tab1_dat%>%group_by(id, `Extended flight group`)%>%
+  summarise(n_sp=length(unique(sp)), n_study=length(unique(study)))
+            
+tab1_sum_2<-tab1_dat%>%group_by(id, `Extended flight group`)%>%distinct(study,.keep_all = T)%>%ungroup()%>%
+  group_by(id, `Extended flight group`)%>%
+  summarise(`Vessel-based`=sum(`Vessel-based`), `Bio-logger`=sum(`Bio-logger`),
+            `Aerial/land-based`=sum(`Aerial/land-based`),`Literature review`=sum(`Literature review`))
+
+tab1_sum_3<-left_join(tab1_sum_1, tab1_sum_2, by=join_by("id", `Extended flight group`))
+
+tab1_sum_3<-left_join(tab1_sum_3, table(flg$`Extended flight group`)%>%data.frame(), by=join_by(`Extended flight group`=='Var1'))
+
+#### ***  *** ####
+
 #### *** Combine results tables into main paper table *** #### 
 
 #read in results data
@@ -642,7 +694,6 @@ flg<-read_xlsx("data/procellariiform_flight_groups.xlsx")
 speed_meta_out<-left_join(speed_meta_out, flg[,c(2,8)], by=join_by("sp"==`Common name`))
 nfi_meta_out<-left_join(nfi_meta_out, flg[,c(2,8)], by=join_by("sp"==`Common name`))
 ht_res_out<-left_join(ht_res_out, flg[,c(2,8)], by=join_by("Common.name"==`Common name`))
-
 
 # Anecdotal/ Max HEIGHT to be added manually
 

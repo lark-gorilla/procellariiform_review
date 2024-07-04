@@ -975,16 +975,41 @@ ggplot(data=flg_mn)+
 # test to see if %time in RSZ increases with lower minimum tip height
 library(lme4)
 library(performance)
+library(ggResidpanel)
+library(lmerTest)
 
+#first models excluding small studies < 3 species
 m1<-lmer(as.numeric(X1)~as.numeric(X3)+(1|study)+(1|`Extended flight group`), data=height_ready%>%filter(study%in%c(names(which(table(height_ready$study)>2)))))
 check_model(m1)
 
+
+m2<-glmer(cbind(ceiling(as.numeric(X1)), 100-ceiling(as.numeric(X1)))~as.numeric(X3)+(1|study)+(1|`Extended flight group`),
+          data=height_ready%>%filter(study%in%c(names(which(table(height_ready$study)>2)))), family='binomial')
+
+#refit with full dataset (all studies)
+
+m3<-lmer(as.numeric(X1)~as.numeric(X3)+(1|study)+(1|`Extended flight group`), data=height_ready)
+
+
+m4<-glmer(cbind(ceiling(as.numeric(X1)), 100-ceiling(as.numeric(X1)))~as.numeric(X3)+(1|study)+(1|`Extended flight group`),
+          data=height_ready, family='binomial')
+
+
+resid_compare(list(m1, m3, m2,m4))
+
 library(lmerTest)
 anova(m1)
+anova(m3) # use this
+#Type III Analysis of Variance Table with Satterthwaite's method
+#               Sum Sq Mean Sq NumDF  DenDF F value Pr(>F)
+#as.numeric(X3) 11.761  11.761     1 6.6688   0.253 0.6312
 
-m2<-glmer(cbind(ceiling(as.numeric(X1)), 100-ceiling(as.numeric(X1)))~X3+(1|study),
-          data=height_ready%>%filter(study%in%c(names(which(table(height_ready$study)>2)))), family='binomial')
-check_model(m2)
+library(car)
+Anova(m2)
+Anova(m4)
+
+# none significant
+
 
 
 

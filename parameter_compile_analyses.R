@@ -678,6 +678,69 @@ tab1_sum_2<-tab1_dat%>%group_by(id, `Extended flight group`)%>%distinct(study,.k
 tab1_sum_3<-left_join(tab1_sum_1, tab1_sum_2, by=join_by("id", `Extended flight group`))
 
 tab1_sum_3<-left_join(tab1_sum_3, table(flg$`Extended flight group`)%>%data.frame(), by=join_by(`Extended flight group`=='Var1'))
+tab1_sum_3$sp_perc<-ceiling(tab1_sum_3$n_sp/tab1_sum_3$Freq*100)
+tab1_sum_3$caption<-paste0(tab1_sum_3$n_sp, " (", tab1_sum_3$sp_perc, "%)")
+# export table
+tab1_out<-tab1_sum_3%>%select(id, `Extended flight group`, caption)%>%pivot_wider(names_from = id, values_from=caption, values_fill = NA)
+tab1_out$`Extended flight group`<-factor(tab1_out$`Extended flight group`, levels=
+                                       c("Great albatrosses", "Sooty albatrosses", "Small albatrosses", "Giant petrels", "Fulmars", "Procellaria petrels", 
+                                         "Large gadfly petrels", "Small gadfly petrels", "Calonectris shearwaters", "Surface feeding shearwaters", "Diving shearwaters", 
+                                         "Manx type shearwaters", "Prions", "Diving petrels", "Oceanodroma", "Frigate petrels", "Oceanites"))
+tab1_out<-tab1_out%>%arrange(`Extended flight group`)
+write_xlsx(tab1_out, "outputs/review_summary_table.xlsx")
+
+# write out pie charts
+for(i in 1:nrow(tab1_sum_3))
+{
+  r1<-tab1_sum_3[i,]
+  r2<-r1%>%select(5:8)%>%pivot_longer(!id, names_to = 'data.type', values_to='count')
+  r2<-filter(r2, count>0)
+  
+  p1<-ggplot(r2, aes(x = "", y = count, fill = data.type)) +
+    geom_col(color = "black", size=0.1) +
+    geom_text(aes(label = count),
+              position = position_stack(vjust = 0.5), size=2.5) +
+    scale_fill_manual(values = c( `Vessel-based` = "#00BFC4", `Bio-logger` = "#F8766D",
+                                  `Literature review` = "#C77CFF", `Aerial/land-based`="#7CAE00"))+
+    coord_polar(theta = "y") +
+    theme_void()+  theme(legend.position = "none")
+  
+  if(nrow(r2)==1){
+  p1<-ggplot(r2, aes(x = "", y = count, fill = data.type)) +
+    geom_col() +
+    geom_text(aes(label = count),
+              position = position_stack(vjust = 1), size=2.5) +
+    scale_fill_manual(values = c( `Vessel-based` = "#00BFC4", `Bio-logger` = "#F8766D",
+                                  `Literature review` = "#C77CFF", `Aerial/land-based`="#7CAE00"))+
+    coord_polar(theta = "y") +
+    theme_void()+  theme(legend.position = "none")}
+  
+  ggsave(paste0("outputs/review_summary_table_plots/", paste(r1[c(2,1)], collapse="_"), ".png"), 
+         p1, width = 1, height = 1, units = "cm")
+}
+
+# Per parameter totals for paper
+length(unique(tab1_dat$sp)) # n sp overall
+
+n_sps<-tab1_dat%>%group_by(id, sp)%>%summarise_all(first)%>%as.data.frame()
+t1<-table(n_sps$sp)%>%as.data.frame()%>%arrange(Freq)
+nrow(t1[t1$Freq>1,]);nrow(t1[t1$Freq>2,]) # n with 2+ and 3+ parameters
+
+# n study types overall
+tab1_dat%>%group_by(study)%>%summarise_all(first)%>%ungroup()%>%summarise_if(is.numeric,sum) # Pennyciuk 1982 = land and vessel based
+
+# percentages per data group
+tab1_dat%>%group_by(varib, study)%>%summarise_all(first)%>%ungroup%>%group_by(varib)%>%summarise_if(is.numeric,sum)
+t1_d<-tab1_dat%>%group_by(id, study)%>%summarise_all(first)%>%ungroup%>%group_by(id)%>%summarise_if(is.numeric,sum)
+t1_d$sum=rowSums(t1_d[,2:5])
+round(t1_d[,2:5]/t1_d$sum*100)
+
+# n species per flight group
+tab1_sum_3%>%group_by(id)%>%summarise(med=median(n_study), mn=mean(n_study), min=min(n_study), max=max(n_study))
+
+
+#
+
 
 #### ***  *** ####
 

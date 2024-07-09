@@ -966,6 +966,7 @@ flg_sd<-piv_res%>%group_by(`Extended flight group`)%>%summarise_all(.fun=functio
 
 # make plots for %RSZ, speed and NFI
 
+# ** NFI **
 #Species + genus averaged plot
 #order by decreasing risk
 flg_mn$`Extended flight group`<-factor(flg_mn$`Extended flight group`, levels=flg_mn[order(flg_mn$mean_nfi, decreasing =T),] $`Extended flight group`)
@@ -1005,12 +1006,12 @@ nfi_p_appen<-ggplot()+
         axis.title.x = element_blank(),
         legend.position=c(.9,.8))
 
+# ** SPEED **
+#Species + genus averaged plot
 #order by decreasing risk
 flg_mn$`Extended flight group`<-factor(flg_mn$`Extended flight group`, levels=flg_mn[order(flg_mn$mean_speed, decreasing =T),] $`Extended flight group`)
 piv_speed$`Extended flight group`<-factor(piv_speed$`Extended flight group`, levels=levels( flg_mn$`Extended flight group`))
 speed_ready$`Extended flight group`<-factor(speed_ready$`Extended flight group`, levels=levels( flg_mn$`Extended flight group`))
-
-#Species + genus averaged plot
 
 speed_p<-ggplot()+
   geom_jitter(data=speed_ready%>%filter(varib=="trip"&!is.na(mean)), aes(x=`Extended flight group`, y=mean, colour='trip'), height=0, width=0.15, alpha=0.2, size=2)+
@@ -1034,12 +1035,30 @@ speed_p<-ggplot()+
         axis.title=element_text(size=10,face="bold"),
         axis.title.x = element_blank(), legend.position=c(.9,.8))
 
+#Species plot for appendix
+#order by decreasing risk
+piv_speed$sp<-factor(piv_speed$sp, levels=piv_speed[order(piv_speed$mean_speed, decreasing =T),]$sp)
+
+speed_p_appen<-ggplot()+
+  geom_hline(yintercept=0, size=0.5)+
+  geom_col(data=piv_speed%>%filter(!is.na(mean_speed)), aes(x=sp, y=mean_speed, fill=factor(n_studies_speed)))+
+  geom_errorbar(data=piv_speed%>%filter(!is.na(mean_speed)&!is.na(LCI_speed)), aes(x=sp, ymax=mean_speed+sd_speed, ymin=mean_speed-sd_speed))+
+  geom_errorbar(data=piv_speed%>%filter(!is.na(mean_speed)&is.na(LCI_speed)), aes(x=sp, ymax=mean_speed+sd_speed, ymin=mean_speed-sd_speed), col='blue', width=0.8)+
+  geom_col(data=piv_speed%>%filter(!is.na(mean_speed)), aes(x=sp, y=mean_speed, fill=factor(n_studies_speed)))+
+  labs(y="Speed (m/s)", fill='n studies')+
+  theme_bw()+
+  theme(axis.text=element_text(size=8),
+        axis.title=element_text(size=10,face="bold"), 
+        axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1),
+        axis.title.x = element_blank(),
+        legend.position=c(.9,.8))
+
+# ** % RSZ **
+#Species + genus averaged plot
 #order by decreasing risk
 flg_mn$`Extended flight group`<-factor(flg_mn$`Extended flight group`, levels=flg_mn[order(flg_mn$wt_ave_percRSZ, decreasing =T),] $`Extended flight group`)
 piv_height$`Extended flight group`<-factor(piv_height$`Extended flight group`, levels=levels( flg_mn$`Extended flight group`))
 height_ready$`Extended flight group`<-factor(height_ready$`Extended flight group`, levels=levels( flg_mn$`Extended flight group`))
-
-#Species + genus averaged plot
 
 rsz_p<-ggplot()+
   geom_jitter(data=height_ready%>%filter(varib=="percRSZ"& !is.na(X1)), aes(x=`Extended flight group`, y=as.numeric(X1), colour=X2 ), height=0, width=0.2, alpha=0.4, size=2)+

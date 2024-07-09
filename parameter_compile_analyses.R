@@ -966,12 +966,11 @@ flg_sd<-piv_res%>%group_by(`Extended flight group`)%>%summarise_all(.fun=functio
 
 # make plots for %RSZ, speed and NFI
 
+#Species + genus averaged plot
 #order by decreasing risk
 flg_mn$`Extended flight group`<-factor(flg_mn$`Extended flight group`, levels=flg_mn[order(flg_mn$mean_nfi, decreasing =T),] $`Extended flight group`)
 piv_nfi$`Extended flight group`<-factor(piv_nfi$`Extended flight group`, levels=levels( flg_mn$`Extended flight group`))
 nfi_ready$`Extended flight group`<-factor(nfi_ready$`Extended flight group`, levels=levels( flg_mn$`Extended flight group`))
-
-#Species + genus averaged plot
 
 nfi_p<-ggplot()+
   geom_hline(yintercept=0, size=0.5)+
@@ -985,6 +984,26 @@ nfi_p<-ggplot()+
   theme(axis.text=element_text(size=10),
         axis.title=element_text(size=10,face="bold"),
         axis.title.x = element_blank())
+
+#Species plot for appendix
+#order by decreasing risk
+
+piv_nfi$sp<-factor(piv_nfi$sp, levels=piv_nfi[order(piv_nfi$mean_nfi, decreasing =T),]$sp)
+
+nfi_p_appen<-ggplot()+
+  geom_hline(yintercept=0, size=0.5)+
+  geom_col(data=piv_nfi%>%filter(!is.na(mean_nfi)), aes(x=sp, y=mean_nfi, fill=factor(n_studies_nfi)))+
+  geom_errorbar(data=piv_nfi%>%filter(!is.na(LCI_nfi)), aes(x=sp, ymax=mean_nfi+sd_nfi, ymin=mean_nfi-sd_nfi))+
+  geom_errorbar(data=piv_nfi%>%filter(is.na(LCI_nfi)), aes(x=sp, ymax=mean_nfi+sd_nfi, ymin=mean_nfi-sd_nfi), col='blue')+
+  geom_col(data=piv_nfi%>%filter(!is.na(mean_nfi)), aes(x=sp, y=mean_nfi, fill=factor(n_studies_nfi)))+
+  scale_y_continuous(breaks=seq(-1, 1, 0.2), limits=c(-1, 1))+
+  labs(y="Night Flight Index", fill='n studies')+
+ theme_bw()+
+  theme(axis.text=element_text(size=8),
+        axis.title=element_text(size=10,face="bold"), 
+        axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1),
+        axis.title.x = element_blank(),
+        legend.position=c(.9,.8))
 
 #order by decreasing risk
 flg_mn$`Extended flight group`<-factor(flg_mn$`Extended flight group`, levels=flg_mn[order(flg_mn$mean_speed, decreasing =T),] $`Extended flight group`)

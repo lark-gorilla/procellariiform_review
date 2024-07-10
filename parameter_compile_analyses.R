@@ -993,18 +993,23 @@ piv_nfi$sp<-factor(piv_nfi$sp, levels=piv_nfi[order(piv_nfi$mean_nfi, decreasing
 
 nfi_p_appen<-ggplot()+
   geom_hline(yintercept=0, size=0.5)+
-  geom_col(data=piv_nfi%>%filter(!is.na(mean_nfi)), aes(x=sp, y=mean_nfi, fill=factor(n_studies_nfi)))+
-  geom_errorbar(data=piv_nfi%>%filter(!is.na(LCI_nfi)), aes(x=sp, ymax=mean_nfi+sd_nfi, ymin=mean_nfi-sd_nfi))+
-  geom_errorbar(data=piv_nfi%>%filter(is.na(LCI_nfi)), aes(x=sp, ymax=mean_nfi+sd_nfi, ymin=mean_nfi-sd_nfi), col='blue')+
-  geom_col(data=piv_nfi%>%filter(!is.na(mean_nfi)), aes(x=sp, y=mean_nfi, fill=factor(n_studies_nfi)))+
+  geom_point(data=piv_nfi, aes(x=sp, y=mean_nfi, colour=factor(n_studies_nfi)))+
+  geom_errorbar(data=piv_nfi%>%filter(n_studies_nfi>1), aes(x=sp, ymax=UCI_nfi, ymin=LCI_nfi), col='black', width=0.8)+
+  geom_errorbar(data=piv_nfi%>%filter(!is.na(LCI_nfi) & n_studies_nfi==1), aes(x=sp, ymax=UCI_nfi, ymin=LCI_nfi), col='darkgrey', width=0.8)+
+  geom_errorbar(data=piv_nfi%>%filter(is.na(LCI_nfi)), aes(x=sp, ymax=mean_nfi+sd_nfi, ymin=mean_nfi-sd_nfi), col='darkgrey', width=0.8)+
+  geom_point(data=piv_nfi, aes(x=sp, y=mean_nfi, colour=factor(n_studies_nfi)))+
+  
   scale_y_continuous(breaks=seq(-1, 1, 0.2), limits=c(-1, 1))+
-  labs(y="Night Flight Index", fill='n studies')+
+  labs(y="Night Flight Index", colour='n studies')+
  theme_bw()+
   theme(axis.text=element_text(size=8),
         axis.title=element_text(size=10,face="bold"), 
         axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1),
         axis.title.x = element_blank(),
-        legend.position=c(.9,.8))
+        legend.position=c(.95,.75),
+                          legend.background = element_blank(),
+                          legend.box.background = element_blank(),
+                          legend.key = element_blank())
 
 # ** SPEED **
 #Species + genus averaged plot
@@ -1016,14 +1021,14 @@ speed_ready$`Extended flight group`<-factor(speed_ready$`Extended flight group`,
 speed_p<-ggplot()+
   geom_jitter(data=speed_ready%>%filter(varib=="trip"&!is.na(mean)), aes(x=`Extended flight group`, y=mean, colour='trip'), height=0, width=0.15, alpha=0.2, size=2)+
   geom_jitter(data=piv_speed%>%filter(!is.na(mean_trip)), aes(x=`Extended flight group`, y=mean_trip, colour='trip' ), height=0, width=0.05, alpha=0.6, size=2)+
-  geom_point(data=flg_mn%>%filter(!is.na(mean_trip)), aes(x=`Extended flight group`, y=mean_trip, colour='trip'), size=4)+
-  geom_point(data=flg_mn%>%filter(!is.na(mean_trip)), aes(x=`Extended flight group`, y=mean_trip), size=4, colour='black', shape=1)+
   geom_jitter(data=speed_ready%>%filter(varib=="max"&!is.na(mean)), aes(x=`Extended flight group`, y=mean, colour='max' ), height=0, width=0.15, alpha=0.2, size=2)+
   geom_jitter(data=piv_speed%>%filter(!is.na(mean_max)), aes(x=`Extended flight group`, y=mean_max , colour='max' ), height=0, width=0.05, alpha=0.6, size=2)+
-  geom_point(data=flg_mn%>%filter(!is.na(mean_max)), aes(x=`Extended flight group`, y=mean_max, colour='max' ), size=4)+
-  geom_point(data=flg_mn%>%filter(!is.na(mean_max)), aes(x=`Extended flight group`, y=mean_max), size=4, colour='black', shape=1)+
   geom_jitter(data=speed_ready%>%filter(varib=="speed"&!is.na(mean)), aes(x=`Extended flight group`, y=mean, colour='speed' ), height=0, width=0.15, alpha=0.2, size=2)+
   geom_jitter(data=piv_speed%>%filter(!is.na(mean_speed)), aes(x=`Extended flight group`, y=mean_speed , colour='speed'), height=0, width=0.05, alpha=0.6, size=2)+
+  geom_point(data=flg_mn%>%filter(!is.na(mean_trip)), aes(x=`Extended flight group`, y=mean_trip, colour='trip'), size=4)+
+  geom_point(data=flg_mn%>%filter(!is.na(mean_trip)), aes(x=`Extended flight group`, y=mean_trip), size=4, colour='black', shape=1)+
+  geom_point(data=flg_mn%>%filter(!is.na(mean_max)), aes(x=`Extended flight group`, y=mean_max, colour='max' ), size=4)+
+  geom_point(data=flg_mn%>%filter(!is.na(mean_max)), aes(x=`Extended flight group`, y=mean_max), size=4, colour='black', shape=1)+
   geom_point(data=flg_mn%>%filter(!is.na(mean_speed)), aes(x=`Extended flight group`, y=mean_speed, colour='speed'), size=4)+
   geom_point(data=flg_mn%>%filter(!is.na(mean_speed)), aes(x=`Extended flight group`, y=mean_speed), size=4, colour='black', shape=1)+
   labs(y="Speed (m/s)")+
@@ -1033,9 +1038,12 @@ speed_p<-ggplot()+
                      labels = c( "Maximum speed","Flight speed", "Trip speed"))+
   theme(axis.text=element_text(size=10),
         axis.title=element_text(size=10,face="bold"),
-        axis.title.x = element_blank(), legend.position=c(.9,.8))
+        axis.title.x = element_blank(), legend.position=c(.9,.74),
+        legend.background = element_blank(),
+        legend.box.background = element_blank(),
+        legend.key = element_blank())
 
-#Species plot for appendix
+#Species plot for appendix --Speed
 #order by decreasing risk
 piv_speed$sp<-factor(piv_speed$sp, levels=piv_speed[order(piv_speed$mean_speed, decreasing =T),]$sp)
 
@@ -1053,36 +1061,101 @@ speed_p_appen<-ggplot()+
         axis.title.x = element_blank(),
         legend.position=c(.9,.8))
 
+#Species plot for appendix --Max
+#order by decreasing risk
+piv_speed$sp<-factor(piv_speed$sp, levels=piv_speed[order(piv_speed$mean_max, decreasing =T),]$sp)
+
+speed_p_appen<-ggplot()+
+  geom_hline(yintercept=0, size=0.5)+
+  geom_col(data=piv_speed%>%filter(!is.na(mean_max)), aes(x=sp, y=mean_max, fill=factor(n_studies_max)))+
+  geom_errorbar(data=piv_speed%>%filter(!is.na(mean_max)&!is.na(LCI_max)), aes(x=sp, ymax=mean_max+sd_max, ymin=mean_max-sd_max))+
+  geom_errorbar(data=piv_speed%>%filter(!is.na(mean_max)&is.na(LCI_max)), aes(x=sp, ymax=mean_max+sd_max, ymin=mean_max-sd_max), col='blue', width=0.8)+
+  geom_col(data=piv_speed%>%filter(!is.na(mean_max)), aes(x=sp, y=mean_max, fill=factor(n_studies_max)))+
+  labs(y="Speed (m/s)", fill='n studies')+
+  theme_bw()+
+  theme(axis.text=element_text(size=8),
+        axis.title=element_text(size=10,face="bold"), 
+        axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1),
+        axis.title.x = element_blank(),
+        legend.position=c(.9,.8))
+
+#Species plot for appendix --trip
+#order by decreasing risk
+piv_speed$sp<-factor(piv_speed$sp, levels=piv_speed[order(piv_speed$mean_trip, decreasing =T),]$sp)
+
+speed_p_appen<-ggplot()+
+  geom_hline(yintercept=0, size=0.5)+
+  geom_col(data=piv_speed%>%filter(!is.na(mean_trip)), aes(x=sp, y=mean_trip, fill=factor(n_studies_trip)))+
+  geom_errorbar(data=piv_speed%>%filter(!is.na(mean_trip)&!is.na(LCI_trip)), aes(x=sp, ymax=mean_trip+sd_trip, ymin=mean_trip-sd_trip))+
+  geom_errorbar(data=piv_speed%>%filter(!is.na(mean_trip)&is.na(LCI_trip)), aes(x=sp, ymax=mean_trip+sd_trip, ymin=mean_trip-sd_trip), col='blue', width=0.8)+
+  geom_col(data=piv_speed%>%filter(!is.na(mean_trip)), aes(x=sp, y=mean_trip, fill=factor(n_studies_trip)))+
+  labs(y="Speed (m/s)", fill='n studies')+
+  theme_bw()+
+  scale_y_continuous(limits=c(0, 25))+
+  theme(axis.text=element_text(size=8),
+        axis.title=element_text(size=10,face="bold"), 
+        axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1),
+        axis.title.x = element_blank(),
+        legend.position=c(.9,.8))
+
+#Species plot for appendix --ALL
+#order by decreasing risk
+
+piv_speed$sp<-factor(piv_speed$sp, levels=piv_speed[order(piv_speed$mean_speed, decreasing =T),]$sp)
+
+speed_p_appen<-ggplot()+
+ 
+  geom_point(data=piv_speed, aes(x=sp, y=mean_trip, colour='trip' ), alpha=0.6, size=2)+
+  geom_errorbar(data=piv_speed%>%filter(n_studies_trip>1), aes(x=sp, ymax=UCI_trip, ymin=LCI_trip), col='black', width=0.8)+
+  geom_errorbar(data=piv_speed%>%filter(!is.na(LCI_trip) & n_studies_trip==1), aes(x=sp, ymax=UCI_trip, ymin=LCI_trip), col='darkgrey', width=0.8)+
+  geom_errorbar(data=piv_speed%>%filter(is.na(LCI_trip)), aes(x=sp, ymax=mean_trip+sd_trip, ymin=mean_trip-sd_trip), col='darkgrey', width=0.8)+
+ 
+  geom_point(data=piv_speed, aes(x=sp, y=mean_max , colour='max' ), alpha=0.6, size=2)+
+  geom_errorbar(data=piv_speed%>%filter(n_studies_max>1), aes(x=sp, ymax=UCI_max, ymin=LCI_max), col='black', width=0.8)+
+  geom_errorbar(data=piv_speed%>%filter(!is.na(LCI_max) & n_studies_max==1), aes(x=sp, ymax=UCI_max, ymin=LCI_max), col='darkgrey', width=0.8)+
+  geom_errorbar(data=piv_speed%>%filter(is.na(LCI_max)), aes(x=sp, ymax=mean_max+sd_max, ymin=mean_max-sd_max), col='darkgrey', width=0.8)+
+
+  geom_point(data=piv_speed, aes(x=sp, y=mean_speed , colour='speed'), alpha=0.6, size=2)+
+  geom_errorbar(data=piv_speed%>%filter(n_studies_speed>1), aes(x=sp, ymax=UCI_speed, ymin=LCI_speed), col='black', width=0.8)+
+  geom_errorbar(data=piv_speed%>%filter(!is.na(LCI_speed) & n_studies_speed==1), aes(x=sp, ymax=UCI_speed, ymin=LCI_speed), col='darkgrey', width=0.8)+
+  geom_errorbar(data=piv_speed%>%filter(is.na(LCI_speed)), aes(x=sp, ymax=mean_speed+sd_speed, ymin=mean_speed-sd_speed), col='darkgrey', width=0.8)+
+  
+  geom_point(data=piv_speed, aes(x=sp, y=mean_trip, colour='trip' ), alpha=0.6, size=2)+
+  geom_point(data=piv_speed, aes(x=sp, y=mean_max , colour='max' ), alpha=0.6, size=2)+
+  geom_point(data=piv_speed, aes(x=sp, y=mean_speed , colour='speed'), alpha=0.6, size=2)+
+  labs(y="Speed (m/s)")+theme_bw()+
+  scale_color_manual(name = "Group",
+                     values = c( "speed" = "blue", "max" = "darkred", "trip" = "orange"),
+                     labels = c( "Maximum speed","Flight speed", "Trip speed"))+
+  theme(axis.text=element_text(size=8),
+        axis.title=element_text(size=10,face="bold"), 
+        axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1),
+        axis.title.x = element_blank(),
+        legend.position=c(.7,.8))
+
 # ** % RSZ **
 #Species + genus averaged plot
 #order by decreasing risk
 flg_mn$`Extended flight group`<-factor(flg_mn$`Extended flight group`, levels=flg_mn[order(flg_mn$wt_ave_percRSZ, decreasing =T),] $`Extended flight group`)
 piv_height$`Extended flight group`<-factor(piv_height$`Extended flight group`, levels=levels( flg_mn$`Extended flight group`))
 height_ready$`Extended flight group`<-factor(height_ready$`Extended flight group`, levels=levels( flg_mn$`Extended flight group`))
+height_ready$X3<-factor(height_ready$X3, levels=c('H', 'M', 'L'))
 
 rsz_p<-ggplot()+
   geom_jitter(data=height_ready%>%filter(varib=="percRSZ"& !is.na(X1)), aes(x=`Extended flight group`, y=as.numeric(X1), colour=X2 ), height=0, width=0.2, alpha=0.4, size=2)+
   geom_point(data=flg_mn%>%filter(!is.na(wt_ave_percRSZ)), aes(x=`Extended flight group`, y=wt_ave_percRSZ), size=4, colour='black', shape=1)+
   labs(y="Time in Rotor Swept Zone (%)")+
   scale_color_manual(name = "Study accuracy",
+                     breaks = c( 'H', 'M', 'L') ,
                      values = c( "H" = "blue", "M" = "orange", "L" = "darkred"),
-                     labels = c( "High","Low", "Medium"))+
+                     labels = c( "High", "Medium", "Low"))+
   scale_x_discrete(guide = guide_axis(n.dodge = 2))+theme_bw()+
   theme(axis.text=element_text(size=10),
         axis.title=element_text(size=10,face="bold"),
-        axis.title.x = element_blank(), legend.position=c(.9,.8))
-
-rsz_p22222<-ggplot()+
-  geom_jitter(data=height_ready%>%filter(varib=="percRSZ"& !is.na(X1)), aes(x=`Extended flight group`, y=as.numeric(X1), colour=X2 ), height=0, width=0.2, alpha=0.4, size=2)+
-     geom_point(data=flg_mn%>%filter(!is.na(wt_ave_percRSZ)), aes(x=`Extended flight group`, y=wt_ave_percRSZ), size=4, colour='black', shape=1)+
-    labs(y="Time in Rotor Swept Zone (%)")+
-     scale_color_manual(name = "Study accuracy",
-                                              values = c( "H" = "blue", "M" = "orange", "L" = "darkred"),
-                                              labels = c( "High","Low", "Medium"))+
-     scale_x_discrete(guide = guide_axis(n.dodge = 2))+theme_bw()+
-     theme(axis.text=element_text(size=10),
-                   axis.title=element_text(size=10,face="bold"),
-                    axis.title.x = element_blank(), legend.position=c(.9,.8))
+        axis.title.x = element_blank(), legend.position=c(.9,0.74),
+        legend.background = element_blank(),
+        legend.box.background = element_blank(),
+        legend.key = element_blank())
 
 
 library(patchwork)

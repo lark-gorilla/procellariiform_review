@@ -1045,6 +1045,10 @@ speed_p<-ggplot()+
 #Species plot for appendix --Speed
 #order by decreasing risk
 piv_speed$sp<-factor(piv_speed$sp, levels=piv_speed[order(piv_speed$mean_speed, decreasing =T),]$sp)
+sp_ai_sp<-piv_speed[piv_speed$n_studies_speed==1,]$sp[which(piv_speed[piv_speed$n_studies_speed==1,]$sp%in%speed_ready[speed_ready$study=='Spear & Ainley (1997)',]$sp)]
+al_sp<-piv_speed[piv_speed$n_studies_speed==1,]$sp[which(piv_speed[piv_speed$n_studies_speed==1,]$sp%in%speed_ready[speed_ready$study=='Alerstam et al (1993)',]$sp)]
+pn_sp<-piv_speed[piv_speed$n_studies_speed==1,]$sp[which(piv_speed[piv_speed$n_studies_speed==1,]$sp%in%speed_ready[speed_ready$study=='Pennycuik (1982)',]$sp)]
+
 
 speed_p_appen<-ggplot()+
   geom_point(data=piv_speed%>%filter(!is.na(mean_speed)), aes(x=sp, y=mean_speed , colour=factor(n_studies_speed)), size=2)+
@@ -1052,6 +1056,9 @@ speed_p_appen<-ggplot()+
   geom_errorbar(data=piv_speed%>%filter(!is.na(mean_speed)&!is.na(LCI_speed) & n_studies_speed==1), aes(x=sp, ymax=UCI_speed, ymin=LCI_speed), col='darkgrey', width=0.8)+
   geom_errorbar(data=piv_speed%>%filter(!is.na(mean_speed)&is.na(LCI_speed)), aes(x=sp, ymax=mean_speed+sd_speed, ymin=mean_speed-sd_speed), col='darkgrey', width=0.8)+
   geom_point(data=piv_speed%>%filter(!is.na(mean_speed)), aes(x=sp, y=mean_speed, colour=factor(n_studies_speed)), size=2)+
+  geom_text(data=piv_speed%>%filter(sp%in%sp_ai_sp), aes(x=sp, y=UCI_speed+1, label="B"), size=2.5,colour='darkgrey')+
+  geom_text(data=piv_speed%>%filter(sp%in%al_sp), aes(x=sp, y=mean_speed+sd_speed+1, label="A"), size=2.5, colour='darkgrey')+
+  geom_point(data=piv_speed%>%filter(sp%in%pn_sp), aes(x=sp, y=mean_speed+sd_speed+1), size=1, shape=10)+ # none
   labs(y="Flight speed (m/s)", colour='n studies')+
   theme_bw()+guides(colour=guide_legend(ncol=2))+
   theme(axis.text=element_text(size=8),

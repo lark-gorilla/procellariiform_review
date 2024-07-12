@@ -933,7 +933,6 @@ nfi_ready<-read_xlsx("analyses/NFI_ready.xlsx")
 height_ready<-read_xlsx("analyses/height_ready.xlsx")
 speed_ready<-read_xlsx("analyses/speed_ready.xlsx")
 
-
 # join each to extended flight group
 
 flg<-read_xlsx("data/procellariiform_flight_groups.xlsx")
@@ -1048,55 +1047,63 @@ speed_p<-ggplot()+
 piv_speed$sp<-factor(piv_speed$sp, levels=piv_speed[order(piv_speed$mean_speed, decreasing =T),]$sp)
 
 speed_p_appen<-ggplot()+
-  geom_hline(yintercept=0, size=0.5)+
-  geom_col(data=piv_speed%>%filter(!is.na(mean_speed)), aes(x=sp, y=mean_speed, fill=factor(n_studies_speed)))+
-  geom_errorbar(data=piv_speed%>%filter(!is.na(mean_speed)&!is.na(LCI_speed)), aes(x=sp, ymax=mean_speed+sd_speed, ymin=mean_speed-sd_speed))+
-  geom_errorbar(data=piv_speed%>%filter(!is.na(mean_speed)&is.na(LCI_speed)), aes(x=sp, ymax=mean_speed+sd_speed, ymin=mean_speed-sd_speed), col='blue', width=0.8)+
-  geom_col(data=piv_speed%>%filter(!is.na(mean_speed)), aes(x=sp, y=mean_speed, fill=factor(n_studies_speed)))+
-  labs(y="Speed (m/s)", fill='n studies')+
-  theme_bw()+
+  geom_point(data=piv_speed%>%filter(!is.na(mean_speed)), aes(x=sp, y=mean_speed , colour=factor(n_studies_speed)), size=2)+
+  geom_errorbar(data=piv_speed%>%filter(!is.na(mean_speed)& n_studies_speed>1), aes(x=sp, ymax=UCI_speed, ymin=LCI_speed), col='black', width=0.8)+
+  geom_errorbar(data=piv_speed%>%filter(!is.na(mean_speed)&!is.na(LCI_speed) & n_studies_speed==1), aes(x=sp, ymax=UCI_speed, ymin=LCI_speed), col='darkgrey', width=0.8)+
+  geom_errorbar(data=piv_speed%>%filter(!is.na(mean_speed)&is.na(LCI_speed)), aes(x=sp, ymax=mean_speed+sd_speed, ymin=mean_speed-sd_speed), col='darkgrey', width=0.8)+
+  geom_point(data=piv_speed%>%filter(!is.na(mean_speed)), aes(x=sp, y=mean_speed, colour=factor(n_studies_speed)), size=2)+
+  labs(y="Flight speed (m/s)", colour='n studies')+
+  theme_bw()+guides(colour=guide_legend(ncol=2))+
   theme(axis.text=element_text(size=8),
         axis.title=element_text(size=10,face="bold"), 
         axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1),
         axis.title.x = element_blank(),
-        legend.position=c(.9,.8))
+        legend.position=c(.1,.15),
+        legend.background = element_blank(),
+        legend.box.background = element_blank(),
+        legend.key = element_blank())
 
 #Species plot for appendix --Max
 #order by decreasing risk
 piv_speed$sp<-factor(piv_speed$sp, levels=piv_speed[order(piv_speed$mean_max, decreasing =T),]$sp)
 
 speed_p_appen<-ggplot()+
-  geom_hline(yintercept=0, size=0.5)+
-  geom_col(data=piv_speed%>%filter(!is.na(mean_max)), aes(x=sp, y=mean_max, fill=factor(n_studies_max)))+
-  geom_errorbar(data=piv_speed%>%filter(!is.na(mean_max)&!is.na(LCI_max)), aes(x=sp, ymax=mean_max+sd_max, ymin=mean_max-sd_max))+
-  geom_errorbar(data=piv_speed%>%filter(!is.na(mean_max)&is.na(LCI_max)), aes(x=sp, ymax=mean_max+sd_max, ymin=mean_max-sd_max), col='blue', width=0.8)+
-  geom_col(data=piv_speed%>%filter(!is.na(mean_max)), aes(x=sp, y=mean_max, fill=factor(n_studies_max)))+
-  labs(y="Speed (m/s)", fill='n studies')+
-  theme_bw()+
+  geom_point(data=piv_speed%>%filter(!is.na(mean_max)), aes(x=sp, y=mean_max , colour=factor(n_studies_max)), size=2)+
+  geom_errorbar(data=piv_speed%>%filter(!is.na(mean_max)& n_studies_max>1), aes(x=sp, ymax=UCI_max, ymin=LCI_max), col='black', width=0.8)+
+  geom_errorbar(data=piv_speed%>%filter(!is.na(mean_max)&!is.na(LCI_max) & n_studies_max==1), aes(x=sp, ymax=UCI_max, ymin=LCI_max), col='darkgrey', width=0.8)+
+  geom_errorbar(data=piv_speed%>%filter(!is.na(mean_max)&is.na(LCI_max)), aes(x=sp, ymax=mean_max+sd_max, ymin=mean_max-sd_max), col='darkgrey', width=0.8)+
+  geom_point(data=piv_speed%>%filter(!is.na(mean_max)), aes(x=sp, y=mean_max, colour=factor(n_studies_max)), size=2)+
+  labs(y="Maximum speed (m/s)", colour='n studies')+
+  theme_bw()+guides(colour=guide_legend(ncol=1))+
   theme(axis.text=element_text(size=8),
         axis.title=element_text(size=10,face="bold"), 
         axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1),
         axis.title.x = element_blank(),
-        legend.position=c(.9,.8))
+        legend.position=c(.9,.75),
+        legend.background = element_blank(),
+        legend.box.background = element_blank(),
+        legend.key = element_blank())
 
 #Species plot for appendix --trip
 #order by decreasing risk
 piv_speed$sp<-factor(piv_speed$sp, levels=piv_speed[order(piv_speed$mean_trip, decreasing =T),]$sp)
 
 speed_p_appen<-ggplot()+
-  geom_hline(yintercept=0, size=0.5)+
-  geom_col(data=piv_speed%>%filter(!is.na(mean_trip)), aes(x=sp, y=mean_trip, fill=factor(n_studies_trip)))+
-  geom_errorbar(data=piv_speed%>%filter(!is.na(mean_trip)&!is.na(LCI_trip)), aes(x=sp, ymax=mean_trip+sd_trip, ymin=mean_trip-sd_trip))+
-  geom_errorbar(data=piv_speed%>%filter(!is.na(mean_trip)&is.na(LCI_trip)), aes(x=sp, ymax=mean_trip+sd_trip, ymin=mean_trip-sd_trip), col='blue', width=0.8)+
-  geom_col(data=piv_speed%>%filter(!is.na(mean_trip)), aes(x=sp, y=mean_trip, fill=factor(n_studies_trip)))+
-  labs(y="Speed (m/s)", fill='n studies')+
-  theme_bw()+
-  scale_y_continuous(limits=c(0, 25))+
+  geom_point(data=piv_speed%>%filter(!is.na(mean_trip)), aes(x=sp, y=mean_trip , colour=factor(n_studies_trip)), size=2)+
+  geom_errorbar(data=piv_speed%>%filter(!is.na(mean_trip)& n_studies_trip>1), aes(x=sp, ymax=UCI_trip, ymin=LCI_trip), col='black', width=0.8)+
+  geom_errorbar(data=piv_speed%>%filter(!is.na(mean_trip)&!is.na(LCI_trip) & n_studies_trip==1), aes(x=sp, ymax=UCI_trip, ymin=LCI_trip), col='darkgrey', width=0.8)+
+  geom_errorbar(data=piv_speed%>%filter(!is.na(mean_trip)& is.na(LCI_trip)), aes(x=sp, ymax=mean_trip+sd_trip, ymin=mean_trip-sd_trip), col='darkgrey', width=0.8)+
+  geom_point(data=piv_speed%>%filter(!is.na(mean_trip)), aes(x=sp, y=mean_trip, colour=factor(n_studies_trip)), size=2)+
+  labs(y="Whole trip speed (m/s)", colour='n studies')+
+  theme_bw()+guides(colour=guide_legend(ncol=1))+
   theme(axis.text=element_text(size=8),
         axis.title=element_text(size=10,face="bold"), 
         axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1),
         axis.title.x = element_blank(),
-        legend.position=c(.9,.8))
+        legend.position=c(.9,.75),
+        legend.background = element_blank(),
+        legend.box.background = element_blank(),
+        legend.key = element_blank())
 
 #Species plot for appendix --ALL
 #order by decreasing risk

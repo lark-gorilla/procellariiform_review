@@ -45,7 +45,7 @@ names(NAF_meta)[2:6]=c("data.type", "place", "country", "marine region", "stage"
 
 dat_NAF<-dat_NAF[-c(2,3),] # leaves reference row in there
 
-#### ***  *** ####
+#### *** ####
 
 #### *** Flight height review *** ####
 
@@ -129,6 +129,7 @@ ht_res_out<-left_join(ht_res_out,
 #write_xlsx(ht_res_out, "outputs/height_results.xlsx")
 
 #### ***  *** ####
+
 
 #### *** Nocturnal Activity Factor review *** ####
 
@@ -423,10 +424,10 @@ for(j in unique(nfi_ready$sp))
 #write_xlsx(nfi_meta_out, "outputs/NFI_results.xlsx")
 #### ***  *** ####
 
+
 #### *** Flight speed review *** ####
 
 #### ***  *** ####
-
 #### *** prep data and cast to long format *** #### 
 
 # function 1 splitting data
@@ -569,7 +570,6 @@ speed_ready<-rbind(sp_rd_1, sp_rd_3)
 #write_xlsx(speed_ready,"analyses/speed_ready.xlsx")
       
 #### ***  *** ####
-
 #### *** Run Speed meta-analysis: mixed models *** #### 
 
 # run per species
@@ -632,6 +632,7 @@ for(i in unique(speed_ready$varib))
 nfi_ready<-read_xlsx("analyses/NFI_ready.xlsx")
 height_ready<-read_xlsx("analyses/height_ready.xlsx")
 speed_ready<-read_xlsx("analyses/speed_ready.xlsx")
+
 
 #### *** Make first review summary table *** #### 
 
@@ -739,6 +740,62 @@ tab1_sum_3%>%group_by(varib)%>%summarise(med=median(n_study), mn=mean(n_study), 
 #
 
 
+#### ***  *** ####
+
+#### *** Flight group means calculated via meta analyses approach *** #### 
+
+#read in results data
+speed_meta_out<-read_xlsx("outputs/speed_results.xlsx")
+nfi_meta_out<-read_xlsx("outputs/NFI_results.xlsx")
+
+# join each to extended flight group
+
+flg<-read_xlsx("data/procellariiform_flight_groups.xlsx")
+speed_meta_out<-left_join(speed_meta_out, flg[,c(2,8)], by=join_by("sp"==`Common name`))
+nfi_meta_out<-left_join(nfi_meta_out, flg[,c(2,8)], by=join_by("sp"==`Common name`))
+
+speed_n_nfi<-rbind(speed_meta_out, nfi_meta_out)
+speed_n_nfi$ID<-paste(speed_n_nfi$stage, speed_n_nfi$region)
+
+# tiny tweak to Yelkouan Trip speed: impute sd from other two species
+speed_n_nfi[speed_n_nfi$varib=='trip'& speed_n_nfi$sp=='Yelkouan Shearwater',]$sd<-mean(c(3.28, 0.298))
+
+fg_metaz<-NULL
+for(i in unique(speed_n_nfi$varib))
+{
+  var1<-speed_n_nfi[speed_n_nfi$varib==i,]
+  for(j in unique(var1$`Extended flight group`))
+  {
+    out_temp<-NULL
+    sp_var<-var1[var1$`Extended flight group`==j,]
+                                m.mean <- metamean(n = n_studies,
+                                                mean = mean,
+                                                sd = sd,
+                                                studlab = sp,
+                                                data = sp_var,
+                                                cluster=ID,
+                                                sm = "MRAW", # use normal dist for both speed and nfi as sp means are already calculated correct
+                                                fixed = FALSE,
+                                                random = TRUE,
+                                                method.tau = "REML",
+                                                title = paste(i, "Scores"))
+                             
+                             #print(summary(m.mean))
+                             #print(paste(i, j))
+                             #print(forest(m.mean))
+                             #readline("")
+                             
+   out_temp<-data.frame(sp_var[1,c(1, 11)],mean=m.mean$TE.random, LCI=m.mean$lower.random,
+             UCI=m.mean$upper.random,sd=NA, n_sp=m.mean$k,
+             n_studies=sum(m.mean$n), n_indiv_studies=m.mean$k.study)
+                             
+   # calculate SDs from CIs and n https://handbook-5-1.cochrane.org/chapter_7/7_7_3_2_obtaining_standard_deviations_from_standard_errors_and.htm
+   out_temp$sd<-sqrt(m.mean$k)*(out_temp$UCI- out_temp$LCI)/3.92
+    fg_metaz<-rbind(fg_metaz, out_temp)
+  }  
+}
+
+write_xlsx(fg_metaz, "outputs/fg_meta_means.xlsx")
 #### ***  *** ####
 
 #### *** Combine results tables into main paper table *** #### 
@@ -916,6 +973,8 @@ tab1<-tab1%>%select(!starts_with(c("LCI", "UCI", "sd", "n_sp", "n_tr", "n_ma" , 
 #write_xlsx(tab1, "outputs/main_table.xlsx")
 
 #### ***  *** ####
+
+#tab1%>%filter(!sp%in%c('ZZ_mean', 'ZZ_sd'))%>%slice_max(mean_speed, n=5) top 5 sp per varib
 
 #### ---- Plots  ---- ####
 

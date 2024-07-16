@@ -745,55 +745,111 @@ tab1_sum_3%>%group_by(varib)%>%summarise(med=median(n_study), mn=mean(n_study), 
 #### *** Flight group means calculated via meta analyses approach *** #### 
 
 #read in results data
-speed_meta_out<-read_xlsx("outputs/speed_results.xlsx")
-nfi_meta_out<-read_xlsx("outputs/NFI_results.xlsx")
-
-# join each to extended flight group
-
-flg<-read_xlsx("data/procellariiform_flight_groups.xlsx")
-speed_meta_out<-left_join(speed_meta_out, flg[,c(2,8)], by=join_by("sp"==`Common name`))
-nfi_meta_out<-left_join(nfi_meta_out, flg[,c(2,8)], by=join_by("sp"==`Common name`))
-
-speed_n_nfi<-rbind(speed_meta_out, nfi_meta_out)
-speed_n_nfi$ID<-paste(speed_n_nfi$stage, speed_n_nfi$region)
+speed_ready<-read_excel("analyses/speed_ready.xlsx")
+nfi_ready<-read_excel("analyses/NFI_ready.xlsx")
 
 # tiny tweak to Yelkouan Trip speed: impute sd from other two species
-speed_n_nfi[speed_n_nfi$varib=='trip'& speed_n_nfi$sp=='Yelkouan Shearwater',]$sd<-mean(c(3.28, 0.298))
+speed_ready[speed_ready$varib=='trip'& speed_ready$sp=='Yelkouan Shearwater',]$sd<-mean(c(3.28, 0.298))
+# edit to set hacked 'almost zero' vals back to zero
+nfi_ready[nfi_ready$mean>-0.000001 & nfi_ready$mean<0,]$mean<-0
 
-fg_metaz<-NULL
-for(i in unique(speed_n_nfi$varib))
+# join each to extended flight group
+flg<-read_xlsx("data/procellariiform_flight_groups.xlsx")
+speed_ready<-left_join(speed_ready, flg[,c(2,8)], by=join_by("sp"==`Common name`))
+nfi_ready<-left_join(nfi_ready, flg[,c(2,8)], by=join_by("sp"==`Common name`))
+
+# Speed model
+
+speed_meta_out<-NULL
+for(i in unique(speed_ready$varib))
 {
-  var1<-speed_n_nfi[speed_n_nfi$varib==i,]
+  var1<-speed_ready[speed_ready$varib==i,]
   for(j in unique(var1$`Extended flight group`))
   {
     out_temp<-NULL
     sp_var<-var1[var1$`Extended flight group`==j,]
-                                m.mean <- metamean(n = n_studies,
+    if(nrow(sp_var)==1){
+      out_temp<-data.frame(sp_var[1,c(1,13)], mean=sp_var$mean, LCI=NA, UCI=NA, sd=NA,
+                           n=sp_var$n,n_sp=1, 
+                           n_studies= 1, stage=paste(unique(sp_var$stage), collapse=", "),
+                           region=paste(unique(sp_var$`marine region`), collapse=", "))
+                           }else{
+ 
+                             m.mean <- metamean(n = n,
                                                 mean = mean,
                                                 sd = sd,
-                                                studlab = sp,
+                                                studlab = paste(study, subset, sep="-"),
+                                                cluster=study,
                                                 data = sp_var,
-                                                cluster=ID,
-                                                sm = "MRAW", # use normal dist for both speed and nfi as sp means are already calculated correct
+                                                sm = "MLN", # use log transformation instead. Probably, advisable when using non-negative data
                                                 fixed = FALSE,
                                                 random = TRUE,
                                                 method.tau = "REML",
                                                 title = paste(i, "Scores"))
                              
-                             #print(summary(m.mean))
-                             #print(paste(i, j))
-                             #print(forest(m.mean))
-                             #readline("")
                              
-   out_temp<-data.frame(sp_var[1,c(1, 11)],mean=m.mean$TE.random, LCI=m.mean$lower.random,
-             UCI=m.mean$upper.random,sd=NA, n_sp=m.mean$k,
-             n_studies=sum(m.mean$n), n_indiv_studies=m.mean$k.study)
+                             out_temp<-data.frame(sp_var[1,c(1,13)],mean=exp(m.mean$TE.random), LCI=exp(m.mean$lower.random), UCI=exp(m.mean$upper.random),
+                                                  sd=NA, n=sum(m.mean$n), n_sp=length(unique(sp_var$sp)),
+                                                  n_studies= length(unique(sp_var$study)), stage=paste(unique(sp_var$stage), collapse=", "),
+                                                  region=paste(unique(sp_var$`marine region`), collapse=", "))
                              
-   # calculate SDs from CIs and n https://handbook-5-1.cochrane.org/chapter_7/7_7_3_2_obtaining_standard_deviations_from_standard_errors_and.htm
-   out_temp$sd<-sqrt(m.mean$k)*(out_temp$UCI- out_temp$LCI)/3.92
-    fg_metaz<-rbind(fg_metaz, out_temp)
-  }  
+                             # calculate SDs from CIs and n https://handbook-5-1.cochrane.org/chapter_7/7_7_3_2_obtaining_standard_deviations_from_standard_errors_and.htm
+                             out_temp$sd<-sqrt(m.mean$k)*(out_temp$UCI- out_temp$LCI)/3.92
+  }
+    speed_meta_out<-rbind(speed_meta_out, out_temp)
+  }
 }
+
+
+# NFI model
+
+nfi_meta_out<-NULL
+for(j in unique(nfi_ready$`Extended flight group`))
+{
+  out_temp<-NULL
+  sp_var<-nfi_ready[nfi_ready$`Extended flight group`==j,]
+  if(nrow(sp_var)==1){
+    out_temp<-data.frame(sp_var[1,c(1,13)], mean=sp_var$mean, LCI=NA, UCI=NA, sd=NA,
+                         n=sp_var$n,n_sp=1, 
+                         n_studies= 1, stage=paste(unique(sp_var$stage), collapse=", "),
+                         region=paste(unique(sp_var$`marine region`), collapse=", "))
+                        }else{
+    
+                           # tweak to lit review data to impute n
+                           if(NA%in%(as.numeric(sp_var$n))){
+                             sp_var$n<-ifelse(sp_var$n=="M", median(as.numeric(sp_var$n), na.rm=T), sp_var$n)  
+                             sp_var$n<-ifelse(sp_var$n=="L", min(as.numeric(sp_var$n), na.rm=T), sp_var$n)  
+                           }
+                           
+                           sp_var$m2<-qlogis((sp_var$mean+1)/2) # apply correction to rescale -1:1 NFI to 0:1 proportion, then take logit 
+                           sp_var$se2<-(sp_var$sd/2)/(sqrt(as.numeric(sp_var$n))) # correction to sd doesn't need +1 as already non negative 
+                           
+                           m.mean <- metagen(TE = m2,
+                                             seTE = se2,
+                                             studlab = paste(study, subset, sep="-"),
+                                             cluster=study,
+                                             data = sp_var,
+                                             sm = "OR",
+                                             fixed = FALSE,
+                                             random = TRUE,
+                                             method.tau = "ML",
+                                             title = paste(j, "Scores"), backtransf = F)
+
+                           out_temp<-data.frame(sp_var[1,c(1, 13)],mean=(plogis(m.mean$TE.random)*2)-1,
+                                                LCI=(plogis(m.mean$lower.random)*2)-1,
+                                                UCI=(plogis(m.mean$upper.random)*2)-1,
+                                                sd=NA,
+                                                n=sum(as.numeric(sp_var$n)), n_sp=length(unique(sp_var$sp)),
+                                                n_studies= length(unique(sp_var$study)), stage=paste(unique(sp_var$stage), collapse=", "), region=paste(unique(sp_var$`marine region`), collapse=", "))
+                           
+                           # calculate SDs from CIs and n https://handbook-5-1.cochrane.org/chapter_7/7_7_3_2_obtaining_standard_deviations_from_standard_errors_and.htm
+                           out_temp$sd<-sqrt(m.mean$k)*(out_temp$UCI- out_temp$LCI)/3.92
+                      }
+  nfi_meta_out<-rbind(nfi_meta_out, out_temp)
+}
+
+fg_metaz<-rbind(speed_meta_out, nfi_meta_out)
+fg_metaz[fg_metaz$n_studies==1 &fg_metaz$n_sp==1,][c('LCI', 'UCI', 'sd')]<-NA
 
 write_xlsx(fg_metaz, "outputs/fg_meta_means.xlsx")
 #### ***  *** ####

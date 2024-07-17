@@ -424,7 +424,6 @@ for(j in unique(nfi_ready$sp))
 #write_xlsx(nfi_meta_out, "outputs/NFI_results.xlsx")
 #### ***  *** ####
 
-
 #### *** Flight speed review *** ####
 
 #### ***  *** ####
@@ -851,7 +850,7 @@ for(j in unique(nfi_ready$`Extended flight group`))
 fg_metaz<-rbind(speed_meta_out, nfi_meta_out)
 fg_metaz[fg_metaz$n_studies==1 &fg_metaz$n_sp==1,][c('LCI', 'UCI', 'sd')]<-NA
 
-write_xlsx(fg_metaz, "outputs/fg_meta_means.xlsx")
+#write_xlsx(fg_metaz, "outputs/fg_meta_means.xlsx")
 #### ***  *** ####
 
 #### *** Combine results tables into main paper table *** #### 
@@ -907,6 +906,34 @@ flg_mn$max_height<-flg_minmax$p2_max
 
 flg_mn$sp<-"ZZ_mean"
 flg_sd$sp<-"ZZ_sd"
+
+# read in fg group means and SDs from meta analyses and replace 'summarise calc-ed' values
+fg_metaz<-read_xlsx("outputs/fg_meta_means.xlsx")
+
+fg_metaz<-fg_metaz%>%pivot_wider(id_cols=c(`Extended flight group`), names_from=varib,
+                       values_from=c(mean, LCI, UCI, sd, n, n_studies, stage, region), names_vary = "slowest")%>%
+  arrange(`Extended flight group`)
+
+flg_mn$mean_speed<-fg_metaz$mean_speed
+flg_mn$LCI_speed<-fg_metaz$LCI_speed
+flg_mn$UCI_speed<-fg_metaz$UCI_speed
+flg_sd$mean_speed<-fg_metaz$sd_speed
+
+flg_mn$mean_trip<-fg_metaz$mean_trip
+flg_mn$LCI_trip<-fg_metaz$LCI_trip
+flg_mn$UCI_trip<-fg_metaz$UCI_trip
+flg_sd$mean_trip<-fg_metaz$sd_trip
+
+flg_mn$mean_max<-fg_metaz$mean_max
+flg_mn$LCI_max<-fg_metaz$LCI_max
+flg_mn$UCI_max<-fg_metaz$UCI_max
+flg_sd$mean_max<-fg_metaz$sd_max
+
+flg_mn$mean_nfi<-fg_metaz$mean_nfi
+flg_mn$LCI_nfi<-fg_metaz$LCI_nfi
+flg_mn$UCI_nfi<-fg_metaz$UCI_nfi
+flg_sd$mean_nfi<-fg_metaz$sd_nfi
+# end replacement bit 
 
 piv_res<-rbind(piv_res, flg_mn, flg_sd)
 piv_res<-piv_res%>%arrange(`Extended flight group`, sp)
@@ -1030,7 +1057,7 @@ tab1<-tab1%>%select(!starts_with(c("LCI", "UCI", "sd", "n_sp", "n_tr", "n_ma" , 
 
 #### ***  *** ####
 
-#tab1%>%filter(!sp%in%c('ZZ_mean', 'ZZ_sd'))%>%slice_max(mean_speed, n=5) top 5 sp per varib
+#tab1%>%filter(!sp%in%c('ZZ_mean', 'ZZ_sd'))%>%slice_max(mean_speed, n=5) #top 5 sp per varib
 
 #### ---- Plots  ---- ####
 
@@ -1071,9 +1098,15 @@ piv_height<-ht_res_out%>%pivot_wider(id_cols=c(`Extended flight group`, Common.n
 piv_res<-full_join(piv_speed, piv_height, by=join_by(sp==Common.name, `Extended flight group`))
 piv_res<-full_join(piv_res, piv_nfi, by=join_by(sp, `Extended flight group`))
 
-#calc mean and sd per flight group and bind back in then re-order
-flg_mn<-piv_res%>%group_by(`Extended flight group`)%>%summarise_all(.fun=function(x){if(is.numeric(x)){mean(x, na.rm = TRUE)}else{NA}})
-flg_sd<-piv_res%>%group_by(`Extended flight group`)%>%summarise_all(.fun=function(x){if(is.numeric(x)){sd(x, na.rm = TRUE)}else{NA}})
+# read in fg group means and SDs from meta analyses and replace 'summarise calc-ed' values
+fg_metaz<-read_xlsx("outputs/fg_meta_means.xlsx")
+
+flg_mn<-fg_metaz%>%pivot_wider(id_cols=c(`Extended flight group`), names_from=varib,
+                                 values_from=c(mean, LCI, UCI, sd, n, n_studies, stage, region), names_vary = "slowest")%>%
+  arrange(`Extended flight group`)
+
+# original calc just for RSZ
+flg_mn_rsz<-piv_res%>%group_by(`Extended flight group`)%>%summarise_all(.fun=function(x){if(is.numeric(x)){mean(x, na.rm = TRUE)}else{NA}})
 
 # make plots for %RSZ, speed and NFI
 
@@ -1262,14 +1295,14 @@ speed_p_appen<-ggplot()+
 # ** % RSZ **
 #Species + genus averaged plot
 #order by decreasing risk
-flg_mn$`Extended flight group`<-factor(flg_mn$`Extended flight group`, levels=flg_mn[order(flg_mn$wt_ave_percRSZ, decreasing =T),] $`Extended flight group`)
-piv_height$`Extended flight group`<-factor(piv_height$`Extended flight group`, levels=levels( flg_mn$`Extended flight group`))
-height_ready$`Extended flight group`<-factor(height_ready$`Extended flight group`, levels=levels( flg_mn$`Extended flight group`))
+flg_mn_rsz$`Extended flight group`<-factor(flg_mn_rsz$`Extended flight group`, levels=flg_mn_rsz[order(flg_mn_rsz$wt_ave_percRSZ, decreasing =T),] $`Extended flight group`)
+piv_height$`Extended flight group`<-factor(piv_height$`Extended flight group`, levels=levels( flg_mn_rsz$`Extended flight group`))
+height_ready$`Extended flight group`<-factor(height_ready$`Extended flight group`, levels=levels( flg_mn_rsz$`Extended flight group`))
 height_ready$X3<-factor(height_ready$X3, levels=c('H', 'M', 'L'))
 
 rsz_p<-ggplot()+
   geom_jitter(data=height_ready%>%filter(varib=="percRSZ"& !is.na(X1)), aes(x=`Extended flight group`, y=as.numeric(X1), colour=X2 ), height=0, width=0.2, alpha=0.4, size=2)+
-  geom_point(data=flg_mn%>%filter(!is.na(wt_ave_percRSZ)), aes(x=`Extended flight group`, y=wt_ave_percRSZ), size=4, colour='black', shape=1)+
+  geom_point(data=flg_mn_rsz%>%filter(!is.na(wt_ave_percRSZ)), aes(x=`Extended flight group`, y=wt_ave_percRSZ), size=4, colour='black', shape=1)+
   labs(y="Time in Rotor Swept Zone (%)")+
   scale_color_manual(name = "Study accuracy",
                      breaks = c( 'H', 'M', 'L') ,

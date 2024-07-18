@@ -997,7 +997,7 @@ tab1$mean_trip<-paste0(round(tab1$mean_trip, 1), "±", round(tab1$sd_trip, 1))
 tab1$mean_max<-paste0(round(tab1$mean_max, 1), "±", round(tab1$sd_max, 1))
 tab1$wt_ave_percRSZ<-paste0(round(tab1$wt_ave_percRSZ,1), "(", round(tab1$min_percRSZ, 1), "-", round(tab1$max_percRSZ, 1), ")")
 tab1$wt_ave_height<-paste0(round(tab1$wt_ave_height,1), "(", round(tab1$min_height, 1), "-", round(tab1$max_height, 1), ")")
-tab1$mean_nfi<-paste0(round(tab1$mean_nfi, 1), "±", round(tab1$sd_nfi, 1))
+tab1$mean_nfi<-paste0(round(tab1$mean_nfi, 2), "±", round(tab1$sd_nfi, 2))
 
 #tidy
 tab1<-tab1 %>% mutate(across(everything(), gsub, pattern = "(NA-NA)", replacement = "", fixed=T))
@@ -1057,8 +1057,6 @@ tab1<-tab1%>%select(!starts_with(c("LCI", "UCI", "sd", "n_sp", "n_tr", "n_ma" , 
 
 #### ***  *** ####
 
-#tab1%>%filter(!sp%in%c('ZZ_mean', 'ZZ_sd'))%>%slice_max(mean_speed, n=5) #top 5 sp per varib
-
 #### ---- Plots  ---- ####
 
 # Main Fig1
@@ -1105,7 +1103,7 @@ flg_mn<-fg_metaz%>%pivot_wider(id_cols=c(`Extended flight group`), names_from=va
                                  values_from=c(mean, LCI, UCI, sd, n, n_studies, stage, region), names_vary = "slowest")%>%
   arrange(`Extended flight group`)
 
-# original calc just for RSZ
+# original calc just for RSZ and flight height
 flg_mn_rsz<-piv_res%>%group_by(`Extended flight group`)%>%summarise_all(.fun=function(x){if(is.numeric(x)){mean(x, na.rm = TRUE)}else{NA}})
 
 # make plots for %RSZ, speed and NFI
@@ -1316,43 +1314,106 @@ rsz_p<-ggplot()+
         legend.box.background = element_blank(),
         legend.key = element_blank())
 
+#Species plot for appendix --RSZ
+rsz_sp<-height_ready%>%filter(varib=="percRSZ"& !is.na(X1))
+sp_mn<-rsz_sp%>%gr(Common.name)%>%summarise(mn_x1=mean(as.numeric(X1)))
+rsz_sp$Common.name<-factor(rsz_sp$Common.name, levels=sp_mn[order(sp_mn$mn_x1, decreasing=T),]$Common.name)
+
+ggplot()+
+  geom_point(data=rsz_sp, aes(x=Common.name, y=as.numeric(X1), colour=X2), alpha=0.6)+
+  labs(y="Time in Rotor Swept Zone (%)")+
+  scale_color_manual(name = "Study accuracy",
+                     breaks = c( 'H', 'M', 'L') ,
+                     values = c( "H" = "blue", "M" = "orange", "L" = "darkred"),
+                     labels = c( "High", "Medium", "Low"))+
+  theme_bw()+
+  theme(axis.text=element_text(size=10),
+        axis.title=element_text(size=10,face="bold"),
+        axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1),
+        axis.title.x = element_blank(), legend.position=c(.9,0.74),
+        legend.background = element_blank(),
+        legend.box.background = element_blank(),
+        legend.key = element_blank())
+
+
+#make Main fig 1
 
 library(patchwork)
 speed_p/nfi_p/rsz_p
 
-# Main Fig 2
 
-# ammend CI columns to reflect SD between species within group (ie of reported mean)
-flg_mn$LCI_speed<-flg_mn$mean_speed-flg_sd$mean_speed
-flg_mn$UCI_speed<-flg_mn$mean_speed+flg_sd$mean_speed
-flg_mn$n_L_percRSZ <-flg_mn$wt_ave_percRSZ-flg_sd$wt_ave_percRSZ
-flg_mn$n_H_percRSZ<-flg_mn$wt_ave_percRSZ+flg_sd$wt_ave_percRSZ
+# make Main fig 2 - flight height
+
+piv_height<-piv_height%>%filter(!is.na(wt_ave_height))
+height_ready<-height_ready%>%filter(!is.na(wt_ave_height))
+piv_height$Common.name<-factor(piv_height$Common.name, levels=piv_height[order(piv_height$wt_ave_height, decreasing =T),]$Common.name)
+height_ready$Common.name<-factor(height_ready$Common.name, levels=levels( piv_height$Common.name))
+height_ready$X3<-factor(height_ready$X3, levels=c('H', 'M', 'L'))
+
+ggplot()+
+  geom_point(data=height_ready%>%filter(varib=="height"& !is.na(X1)), aes(x=Common.name, y=as.numeric(X1), 
+            colour=paste0(study, " (", X2, ")") ), size=2)+
+  geom_point(data=piv_height%>%filter(!is.na(wt_ave_height)), aes(x=Common.name, y=wt_ave_height), size=4, colour='black', shape=1)+
+  labs(y="Mean flight height (m)", colour='Study (quality)')+
+  theme_bw()+
+  theme(axis.text=element_text(size=10),
+        axis.title=element_text(size=10,face="bold"),
+        axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1),
+        axis.title.x = element_blank(), legend.position=c(.87,0.68),
+        legend.background = element_blank(),
+        legend.box.background = element_blank(),
+        legend.key = element_blank())
+
+# Main Fig 3
+library(scatterpie)
+
+# original calc just for RSZ, calc mean and min max per FG
+flg_mn_rsz<-piv_res%>%group_by(`Extended flight group`)%>%summarise_all(.fun=function(x){if(is.numeric(x)){mean(x, na.rm = TRUE)}else{NA}})
+
+flg_minmax<-piv_res%>%group_by(`Extended flight group`)%>%summarise(p1_mi1=min(min_percRSZ , na.rm = TRUE),p1_mi2=min(wt_ave_percRSZ , na.rm = TRUE), 
+                                                                    p1_mx1=max(max_percRSZ , na.rm = TRUE),p1_mx2=max(wt_ave_percRSZ , na.rm = TRUE))
+
+flg_minmax$p1_min<-apply(cbind(flg_minmax$p1_mi1, flg_minmax$p1_mi2),1, min)
+flg_minmax$p1_max<-apply(cbind(flg_minmax$p1_mx1, flg_minmax$p1_mx2),1, max)
+
+flg_mn_rsz$min_percRSZ<-flg_minmax$p1_min
+flg_mn_rsz$max_percRSZ<-flg_minmax$p1_max
+
+# join rsz results to flg_mn
+flg_mn<-left_join(flg_mn, flg_mn_rsz%>%select(`Extended flight group`, wt_ave_percRSZ,
+                                              min_percRSZ, max_percRSZ), by=join_by(`Extended flight group`))
+
+# Make counts of species within FG per NFI class
+piv_nfi$nfi_class<-cut(piv_nfi$mean_nfi, c(-1,-0.1, 0.1, 1))
+nfi_piedat<-piv_nfi%>%select(1,3,11)%>%pivot_wider(id_cols=`Extended flight group`,
+                                                  names_from=nfi_class, values_from=mean_nfi, values_fn=length, values_fill = 0)
+# join pie dat and seperate flg rsz dataframen(flg_mn, nfi_piedat, by=join_by(`Extended flight group`))
+flg_mn<-left_join(flg_mn, nfi_piedat, by=join_by(`Extended flight group`))
+
+#geom_errorbar(aes(ymin=min_percRSZ, ymax=max_percRSZ, x=mean_speed), alpha=0.5)+
+#  geom_errorbarh(aes(xmin=mean_speed-sd_speed, xmax=mean_speed+sd_speed, y=wt_ave_percRSZ), alpha=0.5)+
 
 ggplot(data=flg_mn)+
-  geom_errorbar(aes(ymin=n_L_percRSZ, ymax=n_H_percRSZ, x=mean_speed), alpha=0.5)+
-  geom_errorbarh(aes(xmin=LCI_speed, xmax=UCI_speed, y=wt_ave_percRSZ), alpha=0.5)+
-  geom_point(aes(x=mean_speed, y=wt_ave_percRSZ, colour=mean_nfi), size=3)+
-  geom_point(aes(x=mean_speed, y=wt_ave_percRSZ), size=3, shape=1)+
   
+  geom_scatterpie(aes(x=mean_speed, y=wt_ave_percRSZ), data=flg_mn,
+                  cols= c("(-1,-0.1]", "(-0.1,0.1]","(0.1,1]"),colour=NA, pie_scale = 3) + coord_equal()+
+  scale_fill_manual(breaks = c("(-1,-0.1]", "(-0.1,0.1]","(0.1,1]") ,
+                     values = c( "(-1,-0.1]" = "yellow", "(-0.1,0.1]" = "lightgrey", "(0.1,1]" = "black"),
+                     labels = c( "Diurnal", "Both", "Nocturnal"))+
   geom_text_repel(aes(x=mean_speed, y=wt_ave_percRSZ, label= `Extended flight group`),
-                  size=3.5)+
-  scale_colour_gradient2(
-    low = "yellow",
-    mid = "lightgrey",
-    high = "black",
-    midpoint = 0,
-    space = "Lab",
-    na.value = "grey50",
-    guide = "colourbar",
-    aesthetics = "colour")+theme_bw()+
+                  size=3)+theme_bw()+
   labs(y="Mean time in Rotor Swept Zone (%)", x="Mean flight speed (m/s)",
-       colour="Mean NFI")+
-  theme(        legend.position = c(0.1, 0.8), 
-                legend.text = element_text(size=12))
+       fill="NFI class")+
+  theme(        legend.position = c(0.35, 0.92), 
+                legend.text = element_text(size=10),
+                legend.background = element_blank(),
+                legend.box.background = element_blank(),
+                legend.key = element_blank())
+
+#### ---- Plots End  ---- ####
 
 
-
-# Appendix fig 
+# Stats and RSZ turbine height appendix fig 
 # Species plot to present reasoning for pooling RSZ heights: basically lots of error. Could test with stats if needed
 # runs from above code to make main fig 1
 
@@ -1395,8 +1456,6 @@ Anova(m4)
 # none significant
 
 
-
-
 # make sup fig plot
 height_ready$Common.name<-factor(height_ready$Common.name, levels=unique(height_ready[order(height_ready$`Extended flight group`),] $Common.name))
 height_ready$X2<-factor(height_ready$X2, levels=c("L", "M", "H"))
@@ -1411,27 +1470,47 @@ ggplot()+
   scale_colour_discrete(name = "Minimum height\nof RSZ (m)")+
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
 
-#Plots - FLIGHT HIEGHT
 
-fl_height_nona<-fl_height[-which(is.na(fl_height$ave_fl_height)),]
+# test flight speeds differ between trip, speed and max
+speed_meta_out<-read_xlsx("outputs/speed_results.xlsx")
 
-fl_height_nona$`Common name`<-factor(fl_height_nona$`Common name`, levels=fl_height_nona[order(fl_height_nona$ave_fl_height, decreasing =T),] $ `Common name`)
-fl_height_nona$Studies<-rowSums(fl_height_nona%>%select(c('n_H', 'n_M', 'n_L')))
+m1<-lmer(mean~varib+(1|sp),data=speed_meta_out)
+check_model(m1)
+anova(m1)
+#Type III Analysis of Variance Table with Satterthwaite's method
+#      Sum Sq Mean Sq NumDF DenDF F value    Pr(>F)    
+#varib 1807.3  903.66     2  95.5  102.29 < 2.2e-16 ***
 
-ggplot()+
-  geom_point(data=fl_height_nona, aes(x=`Common name`, y=ave_fl_height, colour=`Genus common`, shape=as.factor(Studies)), size=3)+
-  geom_text_repel(data=fl_height_nona, aes(x=`Common name`, y=ave_fl_height, label= `Common name`), size=5)+
-  scale_y_continuous(breaks=seq(0, 12, 1))+
-  labs(y="Mean flight height (m)")+
-  scale_shape_discrete(name="n Studies")+
-  scale_x_discrete(guide = guide_axis(n.dodge = 2))+theme_bw()+
-  theme(axis.text=element_text(size=12),
-        axis.title=element_text(size=14,face="bold"),
-        axis.title.x = element_blank(),
-        axis.text.x = element_blank(),
-        legend.position = c(0.9, 0.8), 
-        legend.text = element_text(size=12))
-#### ---- Plots End  ---- ####
+library(emmeans)
+emmeans(m1, "varib")
+emmeans(m1, "varib")%>%pairs()
+
+# test whether survey data produces faster trips than biologger
+speed1<-read_xlsx("analyses/speed_ready.xlsx")
+speed1$data.group<-"Vessel-based"
+
+speed1[speed1$data.type%in% c("GPS" ,   "PTT",    "GPS-PTT"  ,   "GPS and PTT" ,                   
+                                  "PPT"  ,  "GPS & PTT" ,     "Barometric pressure sensor" ,"Geolocator" , "GPS/Geolocator",                   
+                                  "Wet-dry logger"  ,   "Wet-dry loggers" ,  "Activity loggers",   "GLS" ,                           
+                                  "Immersion loggers"  ,    "Temperature logger" ,"TDR" ),]$data.group<-"Bio-logger"
+
+speed1[speed1$data.type=="Literature review",]$data.group<-"Literature review"
+
+speed1[speed1$data.type%in% c("Land based ornithodolite"  , "land based radar"  ,"Infrared binoculars and markers",
+                                  "Aerial photogrammetry"   ,  "Ornithodolite from headland" ),]$data.group<-"Aerial/land-based"
+speed1<-filter(speed1, varib=='speed')
+speed1<-filter(speed1, data.group!='Aerial/land-based')#remove few
+
+m1<-lmer(mean~data.group+(1|sp)+(1|study),data=speed1)
+check_model(m1)
+anova(m1)
+#Type III Analysis of Variance Table with Satterthwaite's method
+#Sum Sq Mean Sq NumDF DenDF F value   Pr(>F)   
+#data.group 72.737  72.737     1 14.01  11.774 0.004048 **
+
+library(emmeans)
+emmeans(m1, "data.group")
+emmeans(m1, "data.group")%>%pairs()
 
 
 # TEMP

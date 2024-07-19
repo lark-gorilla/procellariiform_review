@@ -1133,25 +1133,33 @@ nfi_p<-ggplot()+
 
 piv_nfi$sp<-factor(piv_nfi$sp, levels=piv_nfi[order(piv_nfi$mean_nfi, decreasing =T),]$sp)
 
+ke_sp<-piv_nfi[piv_nfi$n_studies_nfi==1,]$sp[which(piv_nfi[piv_nfi$n_studies_nfi==1,]$sp%in%nfi_ready[nfi_ready$study=='Kelsey et al (2018)',]$sp)]
+rw_sp<-piv_nfi[piv_nfi$n_studies_nfi==1,]$sp[which(piv_nfi[piv_nfi$n_studies_nfi==1,]$sp%in%nfi_ready[nfi_ready$study=='Robinson-Willmot et al (2013)',]$sp)]
+
+
 nfi_p_appen<-ggplot()+
   geom_hline(yintercept=0, size=0.5)+
   geom_point(data=piv_nfi, aes(x=sp, y=mean_nfi, colour=factor(n_studies_nfi)))+
   geom_errorbar(data=piv_nfi%>%filter(n_studies_nfi>1), aes(x=sp, ymax=UCI_nfi, ymin=LCI_nfi), col='black', width=0.8)+
   geom_errorbar(data=piv_nfi%>%filter(!is.na(LCI_nfi) & n_studies_nfi==1), aes(x=sp, ymax=UCI_nfi, ymin=LCI_nfi), col='darkgrey', width=0.8)+
   geom_errorbar(data=piv_nfi%>%filter(is.na(LCI_nfi)), aes(x=sp, ymax=mean_nfi+sd_nfi, ymin=mean_nfi-sd_nfi), col='darkgrey', width=0.8)+
-  geom_point(data=piv_nfi, aes(x=sp, y=mean_nfi, colour=factor(n_studies_nfi)))+
   
-  scale_y_continuous(breaks=seq(-1, 1, 0.2), limits=c(-1, 1))+
+  geom_text(data=piv_nfi%>%filter(sp%in%ke_sp), aes(x=sp, y=mean_nfi+sd_nfi+0.1, label="C"), size=2.5,colour='darkgrey')+
+  geom_text(data=piv_nfi%>%filter(sp%in%rw_sp), aes(x=sp, y=mean_nfi+sd_nfi+0.1, label="D"), size=2.5, colour='darkgrey')+
+  
+  geom_point(data=piv_nfi, aes(x=sp, y=mean_nfi, colour=factor(n_studies_nfi)))+
+  coord_flip(ylim=c(-1, 1))+
   labs(y="Night Flight Index", colour='n studies')+
  theme_bw()+
   theme(axis.text=element_text(size=8),
         axis.title=element_text(size=10,face="bold"), 
-        axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1),
-        axis.title.x = element_blank(),
-        legend.position=c(.95,.75),
+        axis.title.y = element_blank(),
+        legend.position=c(.15,.2),
                           legend.background = element_blank(),
                           legend.box.background = element_blank(),
-                          legend.key = element_blank())
+                          legend.key = element_blank(),
+                      legend.title = element_text(size = 8), 
+                       legend.text = element_text(size = 8))
 
 # ** SPEED **
 #Species + genus averaged plot
@@ -1259,6 +1267,9 @@ speed_p_appen<-ggplot()+
 #order by decreasing risk
 
 piv_speed$sp<-factor(piv_speed$sp, levels=piv_speed[order(piv_speed$mean_speed, decreasing =T),]$sp)
+sp_ai_sp<-piv_speed[piv_speed$n_studies_speed==1,]$sp[which(piv_speed[piv_speed$n_studies_speed==1,]$sp%in%speed_ready[speed_ready$study=='Spear & Ainley (1997)',]$sp)]
+al_sp<-piv_speed[piv_speed$n_studies_speed==1,]$sp[which(piv_speed[piv_speed$n_studies_speed==1,]$sp%in%speed_ready[speed_ready$study=='Alerstam et al (1993)',]$sp)]
+pn_sp<-piv_speed[piv_speed$n_studies_speed==1,]$sp[which(piv_speed[piv_speed$n_studies_speed==1,]$sp%in%speed_ready[speed_ready$study=='Pennycuik (1982)',]$sp)]
 
 speed_p_appen<-ggplot()+
  
@@ -1277,18 +1288,26 @@ speed_p_appen<-ggplot()+
   geom_errorbar(data=piv_speed%>%filter(!is.na(LCI_speed) & n_studies_speed==1), aes(x=sp, ymax=UCI_speed, ymin=LCI_speed), col='darkgrey', width=0.8)+
   geom_errorbar(data=piv_speed%>%filter(is.na(LCI_speed)), aes(x=sp, ymax=mean_speed+sd_speed, ymin=mean_speed-sd_speed), col='darkgrey', width=0.8)+
   
+  geom_text(data=piv_speed%>%filter(sp%in%sp_ai_sp), aes(x=sp, y=UCI_speed+1, label="B"), size=2.5,colour='darkgrey')+
+  geom_text(data=piv_speed%>%filter(sp%in%al_sp), aes(x=sp, y=mean_speed+sd_speed+1, label="A"), size=2.5, colour='darkgrey')+
+  
   geom_point(data=piv_speed, aes(x=sp, y=mean_trip, colour='trip' ), alpha=0.6, size=2)+
   geom_point(data=piv_speed, aes(x=sp, y=mean_max , colour='max' ), alpha=0.6, size=2)+
   geom_point(data=piv_speed, aes(x=sp, y=mean_speed , colour='speed'), alpha=0.6, size=2)+
+  coord_flip(ylim=c(0, 30))+
   labs(y="Speed (m/s)")+theme_bw()+
   scale_color_manual(name = "Group",
                      values = c( "speed" = "blue", "max" = "darkred", "trip" = "orange"),
-                     labels = c( "Maximum speed","Flight speed", "Trip speed"))+
+                     labels = c( "Max speed","Flight speed", "Trip speed"))+
   theme(axis.text=element_text(size=8),
         axis.title=element_text(size=10,face="bold"), 
-        axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1),
-        axis.title.x = element_blank(),
-        legend.position=c(.7,.8))
+        axis.title.y = element_blank(),
+        legend.position=c(.78,.68),
+        legend.background = element_blank(),
+        legend.box.background = element_blank(),
+        legend.key = element_blank(),
+        legend.title = element_text(size = 8), 
+        legend.text = element_text(size = 8))
 
 # ** % RSZ **
 #Species + genus averaged plot
@@ -1341,6 +1360,7 @@ ggplot()+
 library(patchwork)
 speed_p/nfi_p/rsz_p
 
+speed_p_appen|nfi_p_appen
 
 # make Main fig 2 - flight height
 
@@ -1396,15 +1416,18 @@ flg_mn<-left_join(flg_mn, nfi_piedat, by=join_by(`Extended flight group`))
 ggplot(data=flg_mn)+
   
   geom_scatterpie(aes(x=mean_speed, y=wt_ave_percRSZ), data=flg_mn,
-                  cols= c("(-1,-0.1]", "(-0.1,0.1]","(0.1,1]"),colour=NA, pie_scale = 3) + coord_equal()+
+                  cols= c("(-1,-0.1]", "(-0.1,0.1]","(0.1,1]"),colour=NA, pie_scale = 3) +
+  geom_point(data=flg_mn[flg_mn$`Extended flight group`=='Frigate petrels',],
+                           aes(x=mean_speed, y=wt_ave_percRSZ), shape=1, size=7) +
+  coord_equal()+
   scale_fill_manual(breaks = c("(-1,-0.1]", "(-0.1,0.1]","(0.1,1]") ,
                      values = c( "(-1,-0.1]" = "yellow", "(-0.1,0.1]" = "lightgrey", "(0.1,1]" = "black"),
                      labels = c( "Diurnal", "Both", "Nocturnal"))+
   geom_text_repel(aes(x=mean_speed, y=wt_ave_percRSZ, label= `Extended flight group`),
-                  size=3)+theme_bw()+
+                  size=3, nudge_y=1, nudge_x=0.25)+theme_bw()+
   labs(y="Mean time in Rotor Swept Zone (%)", x="Mean flight speed (m/s)",
        fill="NFI class")+
-  theme(        legend.position = c(0.35, 0.92), 
+  theme(        legend.position = c(0.3, 0.92), 
                 legend.text = element_text(size=10),
                 legend.background = element_blank(),
                 legend.box.background = element_blank(),

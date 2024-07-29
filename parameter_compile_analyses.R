@@ -768,7 +768,7 @@ for(i in unique(speed_ready$varib))
     out_temp<-NULL
     sp_var<-var1[var1$`Extended flight group`==j,]
     if(nrow(sp_var)==1){
-      out_temp<-data.frame(sp_var[1,c(1,13)], mean=sp_var$mean, LCI=NA, UCI=NA, sd=NA,
+      out_temp<-data.frame(sp_var[1,c(1,13)], mean=sp_var$mean, LCI=NA, UCI=NA, sd=sp_var$sd,
                            n=sp_var$n,n_sp=1, 
                            n_studies= 1, stage=paste(unique(sp_var$stage), collapse=", "),
                            region=paste(unique(sp_var$`marine region`), collapse=", "))
@@ -808,7 +808,7 @@ for(j in unique(nfi_ready$`Extended flight group`))
   out_temp<-NULL
   sp_var<-nfi_ready[nfi_ready$`Extended flight group`==j,]
   if(nrow(sp_var)==1){
-    out_temp<-data.frame(sp_var[1,c(1,13)], mean=sp_var$mean, LCI=NA, UCI=NA, sd=NA,
+    out_temp<-data.frame(sp_var[1,c(1,13)], mean=sp_var$mean, LCI=NA, UCI=NA, sd=sp_var$sd,
                          n=sp_var$n,n_sp=1, 
                          n_studies= 1, stage=paste(unique(sp_var$stage), collapse=", "),
                          region=paste(unique(sp_var$`marine region`), collapse=", "))
@@ -848,7 +848,6 @@ for(j in unique(nfi_ready$`Extended flight group`))
 }
 
 fg_metaz<-rbind(speed_meta_out, nfi_meta_out)
-fg_metaz[fg_metaz$n_studies==1 &fg_metaz$n_sp==1,][c('LCI', 'UCI', 'sd')]<-NA
 
 #write_xlsx(fg_metaz, "outputs/fg_meta_means.xlsx")
 #### ***  *** ####
@@ -913,6 +912,7 @@ fg_metaz<-read_xlsx("outputs/fg_meta_means.xlsx")
 fg_metaz<-fg_metaz%>%pivot_wider(id_cols=c(`Extended flight group`), names_from=varib,
                        values_from=c(mean, LCI, UCI, sd, n, n_studies, stage, region), names_vary = "slowest")%>%
   arrange(`Extended flight group`)
+#write_xlsx(fg_metaz, 'outputs/fg_meta_means_pivotedwider.xlsx')
 
 flg_mn$mean_speed<-fg_metaz$mean_speed
 flg_mn$LCI_speed<-fg_metaz$LCI_speed
@@ -1333,26 +1333,21 @@ rsz_p<-ggplot()+
         legend.box.background = element_blank(),
         legend.key = element_blank())
 
-#Species plot for appendix --RSZ
+#Species plot for appendix --RSZ (this plot also visualizes NS differences ~ airgap )
 rsz_sp<-height_ready%>%filter(varib=="percRSZ"& !is.na(X1))
-sp_mn<-rsz_sp%>%gr(Common.name)%>%summarise(mn_x1=mean(as.numeric(X1)))
+sp_mn<-rsz_sp%>%group_by(Common.name)%>%summarise(mn_x1=mean(as.numeric(X1)))
 rsz_sp$Common.name<-factor(rsz_sp$Common.name, levels=sp_mn[order(sp_mn$mn_x1, decreasing=T),]$Common.name)
 
 ggplot()+
-  geom_point(data=rsz_sp, aes(x=Common.name, y=as.numeric(X1), colour=X2), alpha=0.6)+
-  labs(y="Time in Rotor Swept Zone (%)")+
-  scale_color_manual(name = "Study accuracy",
-                     breaks = c( 'H', 'M', 'L') ,
-                     values = c( "H" = "blue", "M" = "orange", "L" = "darkred"),
-                     labels = c( "High", "Medium", "Low"))+
-  theme_bw()+
-  theme(axis.text=element_text(size=10),
-        axis.title=element_text(size=10,face="bold"),
-        axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1),
-        axis.title.x = element_blank(), legend.position=c(.9,0.74),
-        legend.background = element_blank(),
-        legend.box.background = element_blank(),
-        legend.key = element_blank())
+     geom_point(data=rsz_sp, aes(x=Common.name, y=as.numeric(X1), colour=paste(X3,"m airgap - " ,study)), size=2)+
+    labs(y="Time in Rotor Swept Zone (%)", colour="airgap - study")+
+   
+    theme_bw()+ coord_flip()+
+    theme(axis.text=element_text(size=8),
+                    axis.title=element_text(size=10,face="bold"),
+                   axis.title.y = element_blank(), legend.position=c(.70,0.85),
+                   legend.background = element_blank(),
+                    legend.key = element_blank(),legend.box.background = element_rect(colour = "black"))
 
 
 #make Main fig 1
@@ -1435,6 +1430,7 @@ ggplot(data=flg_mn)+
 
 #### ---- Plots End  ---- ####
 
+#### ---- Stats tests  ---- ####
 
 # Stats and RSZ turbine height appendix fig 
 # Species plot to present reasoning for pooling RSZ heights: basically lots of error. Could test with stats if needed
@@ -1445,6 +1441,7 @@ library(lme4)
 library(performance)
 library(ggResidpanel)
 library(lmerTest)
+library(emmeans)
 
 #first models excluding small studies < 3 species
 m1<-lmer(as.numeric(X1)~as.numeric(X3)+(1|study)+(1|`Extended flight group`), data=height_ready%>%filter(study%in%c(names(which(table(height_ready$study)>2)))))
@@ -1465,7 +1462,6 @@ m4<-glmer(cbind(ceiling(as.numeric(X1)), 100-ceiling(as.numeric(X1)))~as.numeric
 
 resid_compare(list(m1, m3, m2,m4))
 
-library(lmerTest)
 anova(m1)
 anova(m3) # use this
 #Type III Analysis of Variance Table with Satterthwaite's method
@@ -1476,25 +1472,7 @@ library(car)
 Anova(m2)
 Anova(m4)
 
-# none significant
-
-
-# make sup fig plot
-height_ready$Common.name<-factor(height_ready$Common.name, levels=unique(height_ready[order(height_ready$`Extended flight group`),] $Common.name))
-height_ready$X2<-factor(height_ready$X2, levels=c("L", "M", "H"))
-
-# one STSH outlier at 50 removed
-ggplot()+
-  geom_point(data=height_ready%>%filter(varib=="percRSZ" & X1<26 & !is.na(X1)), aes(x=Common.name, y=as.numeric(X1), colour=X3, size=X2), shape=1)+
-  labs(y="Percent time in Rotor Swept Zone")+theme_bw()+
-  scale_y_continuous(breaks=seq(0, 25, 2))+
-  scale_x_discrete(drop=F)+
-  scale_size_discrete(name = "Study\nconfidence")+
-  scale_colour_discrete(name = "Minimum height\nof RSZ (m)")+
-  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
-
-
-# test flight speeds differ between trip, speed and max
+# Test flight speeds differ between trip, speed and max
 speed_meta_out<-read_xlsx("outputs/speed_results.xlsx")
 
 m1<-lmer(mean~varib+(1|sp),data=speed_meta_out)
@@ -1504,11 +1482,11 @@ anova(m1)
 #      Sum Sq Mean Sq NumDF DenDF F value    Pr(>F)    
 #varib 1807.3  903.66     2  95.5  102.29 < 2.2e-16 ***
 
-library(emmeans)
 emmeans(m1, "varib")
 emmeans(m1, "varib")%>%pairs()
 
-# test whether survey data produces faster trips than biologger
+# Test whether survey data produces faster trips than biologger
+
 speed1<-read_xlsx("analyses/speed_ready.xlsx")
 speed1$data.group<-"Vessel-based"
 
@@ -1535,6 +1513,35 @@ library(emmeans)
 emmeans(m1, "data.group")
 emmeans(m1, "data.group")%>%pairs()
 
+# Test flight speeds differ between trip, speed and max
+speed_meta_out<-read_xlsx("outputs/speed_results.xlsx")
+
+m1<-lmer(mean~varib+(1|sp),data=speed_meta_out)
+check_model(m1)
+anova(m1)
+#Type III Analysis of Variance Table with Satterthwaite's method
+#      Sum Sq Mean Sq NumDF DenDF F value    Pr(>F)    
+#varib 1807.3  903.66     2  95.5  102.29 < 2.2e-16 ***
+
+emmeans(m1, "varib")
+emmeans(m1, "varib")%>%pairs()
+
+# Test whether Lit review produces different NFI results from biologgers
+
+nfi1<-read_xlsx("analyses/NFI_ready.xlsx")
+nfi1$data.group<-"Biologger"
+nfi1[nfi1$data.type=="Literature review",]$data.group<-"Literature review"
+
+#nfi2<-nfi1[nfi1$sp%in%nfi1[nfi1$data.type=='Literature review',]$sp,] # pretty much identical result if we exclude biologger only species
+
+m1<-lmer(mean~data.group+(1|sp)+(1|study),data=nfi1)
+check_model(m1)
+anova(m1)
+#Type III Analysis of Variance Table with Satterthwaite's method
+#            Sum Sq Mean Sq NumDF  DenDF F value Pr(>F)
+#data.group 0.10255 0.10255     1 11.155  1.7199 0.2161
+
+#### ---- Stats End  ---- ####
 
 # TEMP
 

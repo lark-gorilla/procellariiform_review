@@ -849,6 +849,11 @@ for(j in unique(nfi_ready$`Extended flight group`))
 
 fg_metaz<-rbind(speed_meta_out, nfi_meta_out)
 
+#TWEAKS!!!
+names(fg_metaz)[2]<-"Extended flight group"
+fg_metaz[fg_metaz$varib=='speed' & fg_metaz$`Extended flight group`=="Frigate petrels",]$sd<-3.2
+fg_metaz[fg_metaz$varib=='speed' & fg_metaz$`Extended flight group`=="Prions",]$sd<-3.6
+
 #write_xlsx(fg_metaz, "outputs/fg_meta_means.xlsx")
 #### ***  *** ####
 
@@ -1012,9 +1017,12 @@ tab1$`Extended flight group`<-factor(tab1$`Extended flight group`, levels=
                                          "Large gadfly petrels", "Small gadfly petrels", "Calonectris shearwaters", "Surface feeding shearwaters", "Diving shearwaters", 
                                          "Manx type shearwaters", "Prions", "Diving petrels", "Oceanodroma", "Frigate petrels", "Oceanites"))
 
+tab1$sp<-factor(tab1$sp, levels=c(flg$`Common name`[which(flg$`Common name`%in%tab1$sp)],"ZZ_sd", "ZZ_mean"))
+
 tab1<-tab1%>%arrange(`Extended flight group`, sp)
 
 #clean up flight group summary rows
+tab1$sp<-as.character(tab1$sp)
 tab1<-tab1%>%filter(sp!="ZZ_sd")
 tab1[tab1$sp=="ZZ_mean", which(!names(tab1)%in%c("mean_speed", "mean_trip", "mean_max", "wt_ave_percRSZ", "wt_ave_height", "mean_nfi", "sp", "Extended flight group"))]<-""
 tab1[tab1$sp=="ZZ_mean",]$sp<-tab1[tab1$sp=="ZZ_mean",]$`Extended flight group`

@@ -650,7 +650,7 @@ names(height_ready)[2]<-"sp"
 tab1_dat<-rbind(speed_ready%>%select(varib,sp, study, data.type,`Extended flight group`)%>%mutate(id="speed"),
                 height_ready%>%select(varib,sp, study, data.type,`Extended flight group`)%>%mutate(id="height"),
                 nfi_ready%>%select(varib,sp, study, data.type,`Extended flight group`)%>%mutate(id="nfi"))
-
+#tab1_dat%>%group_by(sp)%>%summarise(n_studies=length(unique(study)))%>%write_xlsx("temp/n_studies_per_sp.xlsx")
 
 tab1_dat$data.group<-"Vessel-based"
 

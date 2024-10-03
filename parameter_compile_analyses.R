@@ -19,7 +19,7 @@ setwd("C:/Users/mmil0049/OneDrive - Monash University/projects/01 southern seabi
 #### *** Read in data and formatting *** ####
 
 #flight height sheet
-dat_FLH<-read_xlsx('C:/Users/mmil0049/Downloads/procellariiform_OWF_review_FORMATTED (23).xlsx', sheet='flight.height', skip=1) # skip top 'checking' row
+dat_FLH<-read_xlsx('C:/Users/mmil0049/Downloads/procellariiform_OWF_review_FORMATTED (24).xlsx', sheet='flight.height', skip=1) # skip top 'checking' row
 
 height_meta<-data.frame(ref=paste(dat_FLH[1,7:ncol(dat_FLH)]), str_split_fixed(dat_FLH[3,7:ncol(dat_FLH)], "@", 5))
 names(height_meta)[2:6]=c("data.type", "place", "country", "marine region", "stage")
@@ -115,7 +115,7 @@ app_height_out<-app_height_out%>%arrange("varib", "study")
 
 app_height_out<-left_join(app_height_out, height_meta, by=c("study"="ref"), multiple='first') # join in meta data
 
-# add extra attribs to resutls
+# add extra attribs to results
 
 ht_res_out<-left_join(ht_res_out, 
                       app_height_out%>%group_by(varib, Common.name)%>%summarise(stage=paste(unique(stage),
@@ -849,7 +849,7 @@ for(j in unique(nfi_ready$`Extended flight group`))
 
 fg_metaz<-rbind(speed_meta_out, nfi_meta_out)
 
-#TWEAKS!!!
+#Edits!!!
 names(fg_metaz)[2]<-"Extended flight group"
 fg_metaz[fg_metaz$varib=='speed' & fg_metaz$`Extended flight group`=="Frigate petrels",]$sd<-3.2
 fg_metaz[fg_metaz$varib=='speed' & fg_metaz$`Extended flight group`=="Prions",]$sd<-3.6
@@ -1375,8 +1375,8 @@ height_ready$X3<-factor(height_ready$X3, levels=c('H', 'M', 'L'))
 
 ggplot()+
   geom_point(data=height_ready%>%filter(varib=="height"& !is.na(X1)), aes(x=Common.name, y=as.numeric(X1), 
-            colour=paste0(study, " (", X2, ")") ), size=2)+
-  geom_point(data=piv_height%>%filter(!is.na(wt_ave_height)), aes(x=Common.name, y=wt_ave_height), size=4, colour='black', shape=1)+
+            colour=paste0(study, " (", X2, ")") ), size=3)+
+  geom_point(data=piv_height%>%filter(!is.na(wt_ave_height)), aes(x=Common.name, y=wt_ave_height), size=5, colour='black', shape=1)+
   labs(y="Mean flight height (m)", colour='Study (quality)')+
   theme_bw()+
   theme(axis.text=element_text(size=10),

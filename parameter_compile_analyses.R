@@ -9,6 +9,7 @@ library(ggplot2)
 library(ggrepel)
 library(meta)
 library(estmeansd)
+library(ggimage)
 
 
 rm(list=ls())
@@ -1123,13 +1124,22 @@ flg_mn$`Extended flight group`<-factor(flg_mn$`Extended flight group`, levels=fl
 piv_nfi$`Extended flight group`<-factor(piv_nfi$`Extended flight group`, levels=levels( flg_mn$`Extended flight group`))
 nfi_ready$`Extended flight group`<-factor(nfi_ready$`Extended flight group`, levels=levels( flg_mn$`Extended flight group`))
 
+flg_mn$fig<-NA
+flg_mn$y_icon<-NA
+flg_mn[flg_mn$`Extended flight group`=="Great albatrosses",]$fig<-paste("C:/Users/mmil0049/Downloads/colmoon.jfif")
+flg_mn[flg_mn$`Extended flight group`=="Oceanodroma",]$fig<-paste("C:/Users/mmil0049/Downloads/brightsun.jfif")
+flg_mn[flg_mn$`Extended flight group`=="Great albatrosses",]$y_icon=0.6
+flg_mn[flg_mn$`Extended flight group`=="Oceanodroma",]$y_icon=-0.6
+
 nfi_p<-ggplot()+
   geom_hline(yintercept=0, size=0.5)+
+  geom_rect(aes(xmin=-Inf, xmax=Inf,ymin=0, ymax=1),fill='grey', alpha=0.2)+
   geom_jitter(data=nfi_ready%>%filter(!is.na(mean)), aes(x=`Extended flight group`, y=mean ), height=0, width=0.15, alpha=0.2, size=2)+
   geom_jitter(data=piv_nfi%>%filter(!is.na(mean_nfi)), aes(x=`Extended flight group`, y=mean_nfi ), height=0, width=0.05, alpha=0.6, size=2, colour='blue')+
   geom_point(data=flg_mn%>%filter(!is.na(mean_nfi)), aes(x=`Extended flight group`, y=mean_nfi), size=4, colour='blue')+
   geom_point(data=flg_mn%>%filter(!is.na(mean_nfi)), aes(x=`Extended flight group`, y=mean_nfi), size=4, colour='black', shape=1)+
-  scale_y_continuous(breaks=seq(-1, 1, 0.2), limits=c(-1, 1))+
+  geom_image(data=flg_mn%>%filter(!is.na(fig)), aes(x=`Extended flight group`, y=y_icon, image = fig), size=0.2)+
+  scale_y_continuous(breaks=seq(-1, 1, 0.2), limits=c(-1, 1), minor_breaks = NULL)+
   labs(y="Night Flight Index")+
   scale_x_discrete(guide = guide_axis(n.dodge = 2))+theme_bw()+
   theme(axis.text=element_text(size=10),
@@ -1139,21 +1149,27 @@ nfi_p<-ggplot()+
 #Species plot for appendix
 #order by decreasing risk
 
-piv_nfi$sp<-factor(piv_nfi$sp, levels=piv_nfi[order(piv_nfi$mean_nfi, decreasing =T),]$sp)
-
+piv_nfi$sp<-factor(piv_nfi$sp, levels=piv_nfi[order(piv_nfi$mean_nfi, decreasing =T),]$sp) 
 ke_sp<-piv_nfi[piv_nfi$n_studies_nfi==1,]$sp[which(piv_nfi[piv_nfi$n_studies_nfi==1,]$sp%in%nfi_ready[nfi_ready$study=='Kelsey et al (2018)',]$sp)]
 rw_sp<-piv_nfi[piv_nfi$n_studies_nfi==1,]$sp[which(piv_nfi[piv_nfi$n_studies_nfi==1,]$sp%in%nfi_ready[nfi_ready$study=='Robinson-Willmot et al (2013)',]$sp)]
 
+piv_nfi$fig<-NA
+piv_nfi$y_icon<-NA
+piv_nfi[piv_nfi$sp=="Campbell Albatross",]$fig<-paste("C:/Users/mmil0049/Downloads/colmoon.jfif")
+piv_nfi[piv_nfi$sp=="White-winged Petrel",]$fig<-paste("C:/Users/mmil0049/Downloads/brightsun.jfif")
+piv_nfi[piv_nfi$sp=="Campbell Albatross",]$y_icon=0.5
+piv_nfi[piv_nfi$sp=="White-winged Petrel",]$y_icon=-0.5
 
 nfi_p_appen<-ggplot()+
   geom_hline(yintercept=0, size=0.5)+
+  geom_rect(aes(xmin=-Inf, xmax=Inf,ymin=0, ymax=1),fill='grey', alpha=0.2)+
   geom_point(data=piv_nfi, aes(x=sp, y=mean_nfi, colour=factor(n_studies_nfi)))+
   geom_errorbar(data=piv_nfi%>%filter(n_studies_nfi>1), aes(x=sp, ymax=UCI_nfi, ymin=LCI_nfi), col='black', width=0.8)+
   geom_errorbar(data=piv_nfi%>%filter(!is.na(LCI_nfi) & n_studies_nfi==1), aes(x=sp, ymax=UCI_nfi, ymin=LCI_nfi), col='darkgrey', width=0.8)+
   geom_errorbar(data=piv_nfi%>%filter(is.na(LCI_nfi)), aes(x=sp, ymax=mean_nfi+sd_nfi, ymin=mean_nfi-sd_nfi), col='darkgrey', width=0.8)+
-  
-  geom_text(data=piv_nfi%>%filter(sp%in%ke_sp), aes(x=sp, y=mean_nfi+sd_nfi+0.1, label="C"), size=2.5,colour='darkgrey')+
-  geom_text(data=piv_nfi%>%filter(sp%in%rw_sp), aes(x=sp, y=mean_nfi+sd_nfi+0.1, label="D"), size=2.5, colour='darkgrey')+
+  geom_image(data=piv_nfi%>%filter(!is.na(fig)), aes(x=sp, y=y_icon, image = fig), size=0.05)+
+  geom_text(data=piv_nfi%>%filter(sp%in%ke_sp), aes(x=sp, y=mean_nfi+sd_nfi+0.1, label="C"), size=2.5,colour='black')+
+  geom_text(data=piv_nfi%>%filter(sp%in%rw_sp), aes(x=sp, y=mean_nfi+sd_nfi+0.1, label="D"), size=2.5, colour='black')+
   
   geom_point(data=piv_nfi, aes(x=sp, y=mean_nfi, colour=factor(n_studies_nfi)))+
   coord_flip(ylim=c(-1, 1))+
@@ -1196,7 +1212,7 @@ speed_p<-ggplot()+
                      labels = c( "Maximum speed","Flight speed", "Trip speed"))+
   theme(axis.text=element_text(size=10),
         axis.title=element_text(size=10,face="bold"),
-        axis.title.x = element_blank(), legend.position=c(.9,.74),
+        axis.title.x = element_blank(), legend.position=c(.8,.74),
         legend.background = element_blank(),
         legend.box.background = element_blank(),
         legend.key = element_blank())
@@ -1296,8 +1312,8 @@ speed_p_appen<-ggplot()+
   geom_errorbar(data=piv_speed%>%filter(!is.na(LCI_speed) & n_studies_speed==1), aes(x=sp, ymax=UCI_speed, ymin=LCI_speed), col='darkgrey', width=0.8)+
   geom_errorbar(data=piv_speed%>%filter(is.na(LCI_speed)), aes(x=sp, ymax=mean_speed+sd_speed, ymin=mean_speed-sd_speed), col='darkgrey', width=0.8)+
   
-  geom_text(data=piv_speed%>%filter(sp%in%sp_ai_sp), aes(x=sp, y=UCI_speed+1, label="B"), size=2.5,colour='darkgrey')+
-  geom_text(data=piv_speed%>%filter(sp%in%al_sp), aes(x=sp, y=mean_speed+sd_speed+1, label="A"), size=2.5, colour='darkgrey')+
+  geom_text(data=piv_speed%>%filter(sp%in%sp_ai_sp), aes(x=sp, y=UCI_speed+1, label="B"), size=2.5,colour='black')+
+  geom_text(data=piv_speed%>%filter(sp%in%al_sp), aes(x=sp, y=mean_speed+sd_speed+1, label="A"), size=2.5, colour='black')+
   
   geom_point(data=piv_speed, aes(x=sp, y=mean_trip, colour='trip' ), alpha=0.6, size=2)+
   geom_point(data=piv_speed, aes(x=sp, y=mean_max , colour='max' ), alpha=0.6, size=2)+

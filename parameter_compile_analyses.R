@@ -1503,8 +1503,8 @@ m1<-lmer(mean~varib+(1|sp),data=speed_meta_out)
 check_model(m1)
 anova(m1)
 #Type III Analysis of Variance Table with Satterthwaite's method
-#      Sum Sq Mean Sq NumDF DenDF F value    Pr(>F)    
-#varib 1807.3  903.66     2  95.5  102.29 < 2.2e-16 ***
+#      Sum Sq Mean Sq NumDF  DenDF F value    Pr(>F)    
+#varib   1809  904.49     2 96.806  105.05 < 2.2e-16 ***
 
 emmeans(m1, "varib")
 emmeans(m1, "varib")%>%pairs()
@@ -1531,24 +1531,10 @@ check_model(m1)
 anova(m1)
 #Type III Analysis of Variance Table with Satterthwaite's method
 #Sum Sq Mean Sq NumDF DenDF F value   Pr(>F)   
-#data.group 72.737  72.737     1 14.01  11.774 0.004048 **
+#data.group 71.784  71.784     1 13.698  11.846 0.004083 **
 
-library(emmeans)
 emmeans(m1, "data.group")
 emmeans(m1, "data.group")%>%pairs()
-
-# Test flight speeds differ between trip, speed and max
-speed_meta_out<-read_xlsx("outputs/speed_results.xlsx")
-
-m1<-lmer(mean~varib+(1|sp),data=speed_meta_out)
-check_model(m1)
-anova(m1)
-#Type III Analysis of Variance Table with Satterthwaite's method
-#      Sum Sq Mean Sq NumDF DenDF F value    Pr(>F)    
-#varib 1807.3  903.66     2  95.5  102.29 < 2.2e-16 ***
-
-emmeans(m1, "varib")
-emmeans(m1, "varib")%>%pairs()
 
 # Test whether Lit review produces different NFI results from biologgers
 

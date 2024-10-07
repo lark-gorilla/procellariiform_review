@@ -20,7 +20,7 @@ setwd("C:/Users/mmil0049/OneDrive - Monash University/projects/01 southern seabi
 #### *** Read in data and formatting *** ####
 
 #flight height sheet
-dat_FLH<-read_xlsx('C:/Users/mmil0049/Downloads/procellariiform_OWF_review_FORMATTED (24).xlsx', sheet='flight.height', skip=1) # skip top 'checking' row
+dat_FLH<-read_xlsx('C:/Users/mmil0049/Downloads/procellariiform_OWF_review_FORMATTED (25).xlsx', sheet='flight.height', skip=1) # skip top 'checking' row
 
 height_meta<-data.frame(ref=paste(dat_FLH[1,7:ncol(dat_FLH)]), str_split_fixed(dat_FLH[3,7:ncol(dat_FLH)], "@", 5))
 names(height_meta)[2:6]=c("data.type", "place", "country", "marine region", "stage")
@@ -738,7 +738,6 @@ round(t1_d[,2:5]/t1_d$sum*100)
 # n species per flight group
 tab1_sum_3%>%group_by(varib)%>%summarise(med=median(n_study), mn=mean(n_study), min=min(n_study), max=max(n_study))
 #
-
 
 #### ***  *** ####
 

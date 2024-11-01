@@ -20,7 +20,7 @@ setwd("C:/Users/mmil0049/OneDrive - Monash University/projects/01 southern seabi
 #### *** Read in data and formatting *** ####
 
 #flight height sheet
-dat_FLH<-read_xlsx('C:/Users/mmil0049/Downloads/procellariiform_OWF_review_FORMATTED (25).xlsx', sheet='flight.height', skip=1) # skip top 'checking' row
+dat_FLH<-read_xlsx('C:/Users/mmil0049/Downloads/procellariiform_OWF_review_FORMATTED (26).xlsx', sheet='flight.height', skip=1) # skip top 'checking' row
 
 height_meta<-data.frame(ref=paste(dat_FLH[1,7:ncol(dat_FLH)]), str_split_fixed(dat_FLH[3,7:ncol(dat_FLH)], "@", 5))
 names(height_meta)[2:6]=c("data.type", "place", "country", "marine region", "stage")
@@ -31,7 +31,7 @@ dat_FLH<-dat_FLH[-which(is.na(dat_FLH[,1])),] # remove NA row normally.. at end
 
 
 #flight speed sheet
-dat_FSD<-read_xlsx('C:/Users/mmil0049/Downloads/procellariiform_OWF_review_FORMATTED (23).xlsx', sheet='flight.speed', skip=1) # skip top 'checking' row
+dat_FSD<-read_xlsx('C:/Users/mmil0049/Downloads/procellariiform_OWF_review_FORMATTED (26).xlsx', sheet='flight.speed', skip=1) # skip top 'checking' row
 
 speed_meta<-data.frame(ref=paste(dat_FSD[1,7:ncol(dat_FSD)]), str_split_fixed(dat_FSD[3,7:ncol(dat_FSD)], "@", 5))
 names(speed_meta)[2:6]=c("data.type", "place", "country", "marine region", "stage")
@@ -39,7 +39,7 @@ names(speed_meta)[2:6]=c("data.type", "place", "country", "marine region", "stag
 dat_FSD<-dat_FSD[-c(2,3),] # leaves reference row in there
 
 #NAF sheet
-dat_NAF<-read_xlsx('C:/Users/mmil0049/Downloads/procellariiform_OWF_review_FORMATTED (23).xlsx', sheet='nocturnal.activity', skip=1) # skip top 'checking' row
+dat_NAF<-read_xlsx('C:/Users/mmil0049/Downloads/procellariiform_OWF_review_FORMATTED (26).xlsx', sheet='nocturnal.activity', skip=1) # skip top 'checking' row
 
 NAF_meta<-data.frame(ref=paste(dat_NAF[1,7:ncol(dat_NAF)]), str_split_fixed(dat_NAF[3,7:ncol(dat_NAF)], "@", 5))
 names(NAF_meta)[2:6]=c("data.type", "place", "country", "marine region", "stage")
@@ -656,7 +656,7 @@ tab1_dat<-rbind(speed_ready%>%select(varib,sp, study, data.type,`Extended flight
 tab1_dat$data.group<-"Vessel-based"
 
 tab1_dat[tab1_dat$data.type%in% c("GPS" ,   "PTT",    "GPS-PTT"  ,   "GPS and PTT" ,                   
- "PPT"  ,  "GPS & PTT" ,     "Barometric pressure sensor" ,"Geolocator" , "GPS/Geolocator",                   
+ "PPT"  ,  "GPS & PTT" , "GPS & PPT" ,    "Barometric pressure sensor" ,"Geolocator" , "GPS/Geolocator",                   
  "Wet-dry logger"  ,   "Wet-dry loggers" ,  "Activity loggers",   "GLS" ,                           
    "Immersion loggers"  ,    "Temperature logger" ,"TDR" ),]$data.group<-"Bio-logger"
 
@@ -1506,7 +1506,7 @@ check_model(m1)
 anova(m1)
 #Type III Analysis of Variance Table with Satterthwaite's method
 #      Sum Sq Mean Sq NumDF  DenDF F value    Pr(>F)    
-#varib   1809  904.49     2 96.806  105.05 < 2.2e-16 ***
+#varib 1818.3  909.14     2 96.287  107.18 < 2.2e-16 ***
 
 emmeans(m1, "varib")
 emmeans(m1, "varib")%>%pairs()
@@ -1517,7 +1517,7 @@ speed1<-read_xlsx("analyses/speed_ready.xlsx")
 speed1$data.group<-"Vessel-based"
 
 speed1[speed1$data.type%in% c("GPS" ,   "PTT",    "GPS-PTT"  ,   "GPS and PTT" ,                   
-                                  "PPT"  ,  "GPS & PTT" ,     "Barometric pressure sensor" ,"Geolocator" , "GPS/Geolocator",                   
+                                  "PPT"  ,  "GPS & PTT" ,  "GPS & PPT" ,    "Barometric pressure sensor" ,"Geolocator" , "GPS/Geolocator",                   
                                   "Wet-dry logger"  ,   "Wet-dry loggers" ,  "Activity loggers",   "GLS" ,                           
                                   "Immersion loggers"  ,    "Temperature logger" ,"TDR" ),]$data.group<-"Bio-logger"
 
@@ -1533,7 +1533,7 @@ check_model(m1)
 anova(m1)
 #Type III Analysis of Variance Table with Satterthwaite's method
 #Sum Sq Mean Sq NumDF DenDF F value   Pr(>F)   
-#data.group 71.784  71.784     1 13.698  11.846 0.004083 **
+#data.group 64.554  64.554     1 25.332  11.271 0.002491 **
 
 emmeans(m1, "data.group")
 emmeans(m1, "data.group")%>%pairs()
@@ -1551,72 +1551,6 @@ check_model(m1)
 anova(m1)
 #Type III Analysis of Variance Table with Satterthwaite's method
 #            Sum Sq Mean Sq NumDF  DenDF F value Pr(>F)
-#data.group 0.10255 0.10255     1 11.155  1.7199 0.2161
+#data.group 0.10342 0.10342     1 11.504  1.7486 0.2117
 
 #### ---- Stats End  ---- ####
-
-# TEMP
-
-## Anecdotal ##
-
-# function 2 splitting data
-meta_split_2<-function(x)
-{
-  t1<-unlist(str_split(x, "@"))
-  t2<-do.call("rbind", (split(t1, ceiling(1:length(t1)/2))))%>%as.data.frame()
-  return(t2)
-}
-
-
-lit_nf<-dat_NAF%>%dplyr::select(c(1:6, starts_with('Anec')))
-names(lit_nf)<-lit_nf[1,];lit_nf<-lit_nf[-1,]
-
-long_nlit<-NULL
-for(i in 1:nrow(lit_nf))
-{
-  fl_speed_temp<-lit_nf[,7:ncol(lit_nf)]
-  sel_sp<-fl_speed_temp[i,which(!is.na(fl_speed_temp[i,]))]
-  if(length(sel_sp)==0){next} # skip sp with no data
-  temp<-do.call("rbind", apply(sel_sp, 2, FUN=meta_split_2))
-  temp<-data.frame(sp=lit_nf[i,]$`Common name`,
-                   study=paste0(unlist(str_split(row.names(temp), "\\)"))[seq(1, ((nrow(temp)*2)-1), 2)], ")"), temp)
-  long_nlit<-rbind(long_nlit, temp)
-}
-
-long_nlit<-left_join(long_nlit, NAF_meta, by=c("study"="ref"))
-
-write_xlsx(long_nlit, "analyses/temp_anecdotalnaf.xlsx")
-
-lit_nf<-dat_FSD%>%dplyr::select(c(1:6, starts_with('Anec')))
-names(lit_nf)<-lit_nf[1,];lit_nf<-lit_nf[-1,]
-
-long_nlit<-NULL
-for(i in 1:nrow(lit_nf))
-{
-  fl_speed_temp<-lit_nf[,7:ncol(lit_nf)]
-  sel_sp<-fl_speed_temp[i,which(!is.na(fl_speed_temp[i,]))]
-  if(length(sel_sp)==0){next} # skip sp with no data
-  temp<-do.call("rbind", apply(sel_sp, 2, FUN=meta_split_2))
-  temp<-data.frame(sp=lit_nf[i,]$`Common name`,
-                   study=paste0(unlist(str_split(row.names(temp), "\\)"))[seq(1, ((nrow(temp)*2)-1), 2)], ")"), temp)
-  long_nlit<-rbind(long_nlit, temp)
-}
-
-long_nlit<-left_join(long_nlit, speed_meta, by=c("study"="ref"))
-
-write_xlsx(long_nlit, "analyses/temp_anecdotalspeed.xlsx")
-
-# trial 3D plot, hmm hard to see whats going on
-
-library(plot3D)
-
-# greyish background for the boxtype (bty = "g") 
-scatter3D(x=flg_mn$mean_speed, y=flg_mn$mean_nfi, z=flg_mn$wt_ave_percRSZ,
-           bty = "g",phi=40, theta=35,
-          pch = 20, cex = 2, ticktype = "detailed")
-
-# add text
-text3D(x=flg_mn$mean_speed, y=flg_mn$mean_nfi, z=flg_mn$wt_ave_percRSZ,
-       colkey = FALSE, add = TRUE, 
-       labels = flg_mn$`Extended flight group`, col = c("black"))
-

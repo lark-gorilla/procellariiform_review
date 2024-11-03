@@ -629,11 +629,6 @@ for(i in unique(speed_ready$varib))
 
 #### ***  *** ####
 
-nfi_ready<-read_xlsx("analyses/NFI_ready.xlsx")
-height_ready<-read_xlsx("analyses/height_ready.xlsx")
-speed_ready<-read_xlsx("analyses/speed_ready.xlsx")
-
-
 #### *** Make first review summary table *** #### 
 
 # join each to extended flight group
@@ -1139,6 +1134,7 @@ nfi_p<-ggplot()+
   geom_point(data=flg_mn%>%filter(!is.na(mean_nfi)), aes(x=`Extended flight group`, y=mean_nfi), size=4, colour='black', shape=1)+
   geom_image(data=flg_mn%>%filter(!is.na(fig)), aes(x=`Extended flight group`, y=y_icon, image = fig), size=0.2)+
   scale_y_continuous(breaks=seq(-1, 1, 0.2), limits=c(-1, 1), minor_breaks = NULL)+
+  geom_text(data=data.frame(x="Oceanodroma", y=0.9), aes(x=x, y=y, label="b)"), size=8, nudge_x=-0.25)+
   labs(y="Night Flight Index")+
   scale_x_discrete(guide = guide_axis(n.dodge = 2))+theme_bw()+
   theme(axis.text=element_text(size=10),
@@ -1171,6 +1167,7 @@ nfi_p_appen<-ggplot()+
   geom_text(data=piv_nfi%>%filter(sp%in%rw_sp), aes(x=sp, y=mean_nfi+sd_nfi+0.1, label="D"), size=2.5, colour='black')+
   
   geom_point(data=piv_nfi, aes(x=sp, y=mean_nfi, colour=factor(n_studies_nfi)))+
+  geom_text(data=data.frame(x="Campbell Albatross", y=0.9), aes(x=x, y=y, label="b)"), size=7)+
   coord_flip(ylim=c(-1, 1))+
   labs(y="Night Flight Index", colour='n studies')+
  theme_bw()+
@@ -1181,7 +1178,7 @@ nfi_p_appen<-ggplot()+
                           legend.background = element_blank(),
                           legend.box.background = element_blank(),
                           legend.key = element_blank(),
-                      legend.title = element_text(size = 8), 
+                    legend.title = element_text(size = 8), 
                        legend.text = element_text(size = 8))
 
 # ** SPEED **
@@ -1204,8 +1201,9 @@ speed_p<-ggplot()+
   geom_point(data=flg_mn%>%filter(!is.na(mean_max)), aes(x=`Extended flight group`, y=mean_max), size=4, colour='black', shape=1)+
   geom_point(data=flg_mn%>%filter(!is.na(mean_speed)), aes(x=`Extended flight group`, y=mean_speed, colour='speed'), size=4)+
   geom_point(data=flg_mn%>%filter(!is.na(mean_speed)), aes(x=`Extended flight group`, y=mean_speed), size=4, colour='black', shape=1)+
-  labs(y="Speed (m/s)")+
+  labs(y=expression(paste("Speed (", ms^-1, ")")))+
   scale_x_discrete(guide = guide_axis(n.dodge = 2), drop=F)+theme_bw()+
+  geom_text(data=data.frame(x="Giant petrels", y=33), aes(x=x, y=y, label="a)"), size=8, nudge_x=-0.25)+
   scale_color_manual(name = "Group",
                      values = c( "speed" = "blue", "max" = "darkred", "trip" = "orange"),
                      labels = c( "Maximum speed","Flight speed", "Trip speed"))+
@@ -1317,6 +1315,7 @@ speed_p_appen<-ggplot()+
   geom_point(data=piv_speed, aes(x=sp, y=mean_trip, colour='trip' ), alpha=0.6, size=2)+
   geom_point(data=piv_speed, aes(x=sp, y=mean_max , colour='max' ), alpha=0.6, size=2)+
   geom_point(data=piv_speed, aes(x=sp, y=mean_speed , colour='speed'), alpha=0.6, size=2)+
+  geom_text(data=data.frame(x="Yelkouan Shearwater", y=28), aes(x=x, y=y, label="a)"), size=7)+
   coord_flip(ylim=c(0, 30))+
   labs(y="Speed (m/s)")+theme_bw()+
   scale_color_manual(name = "Group",
@@ -1349,6 +1348,7 @@ rsz_p<-ggplot()+
                      values = c( "H" = "blue", "M" = "orange", "L" = "darkred"),
                      labels = c( "High", "Medium", "Low"))+
   scale_x_discrete(guide = guide_axis(n.dodge = 2))+theme_bw()+
+  geom_text(data=data.frame(x="Fulmars", y=48), aes(x=x, y=y, label="c)"), size=8, nudge_x=-0.25)+
   theme(axis.text=element_text(size=10),
         axis.title=element_text(size=10,face="bold"),
         axis.title.x = element_blank(), legend.position=c(.9,0.74),

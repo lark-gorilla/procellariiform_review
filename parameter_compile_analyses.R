@@ -76,6 +76,8 @@ wt_mn<-function(x){
 perc_height_out<-data.frame(varib="percRSZ", `Common name`=perc_height$`Common name`,
                    do.call("rbind", apply(perc_height, 1, FUN=wt_mn)),
                    do.call("rbind", apply(perc_height, 1, FUN=n_conf)))
+
+##Alternate PERC RSZ approach ##
   
 ## FLIGHT HEIGHT ##
 
@@ -1528,6 +1530,19 @@ speed1[speed1$data.type%in% c("Land based ornithodolite"  , "land based radar"  
 speed1<-filter(speed1, varib=='speed')
 speed1<-filter(speed1, data.group!='Aerial/land-based')#remove few
 
+speed1[speed1$study=="Wakefield et al (2009)",]$data.type<-"PTT"
+speed1[speed1$study=="Wakefield et al (2009)"&speed1$sp=="Wandering Albatross",]$data.type<-"GPS"
+
+speed1[speed1$data.type%in%c("GPS & PPT","GPS and PTT"),]$data.type<-"GPS & PTT"
+
+speed1$data.type2<-speed1$data.type
+speed1[speed1$data.group=="Vessel-based",]$data.type2<-"Vessel-based"
+
+#check if as logger tech improves speeds get faster - ie sampling affect having better batteries and increasing sampling interval
+speed1$yr<-as.numeric(substr(speed1$study, nchar(speed1$study)-4,  nchar(speed1$study)-1))
+ggplot(data=speed1)+geom_point(aes(x=yr, y=mean, colour=data.type2))+facet_wrap(~data.type2, scales='free')
+#not much in it
+
 m1<-lmer(mean~data.group+(1|sp)+(1|study),data=speed1)
 check_model(m1)
 anova(m1)
@@ -1537,6 +1552,74 @@ anova(m1)
 
 emmeans(m1, "data.group")
 emmeans(m1, "data.group")%>%pairs()
+
+#pairwise analyses between only species with both biologger and survey data, n=23
+pairwise_sp<-speed1%>%group_by(sp, data.group)%>%summarise(n=n())%>%ungroup()%>%group_by(sp)%>%summarise(n=n())%>%filter(n>1)%>%pull(sp)
+
+speed_pw<-speed1%>%filter(sp%in%pairwise_sp)
+
+ggplot(data=speed_pw)+geom_point(aes(x=yr, y=mean))+facet_wrap(~data.type2)
+
+ggplot(data=speed_pw)+geom_point(aes(x=sp, y=mean, colour=data.type2))+
+  labs(y="Flight speed (m/s)")+
+  theme_bw()+
+  theme(axis.text=element_text(size=10),
+        axis.title=element_text(size=10,face="bold"),
+        axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1),
+        axis.title.x = element_blank(), legend.position=c(.08,0.11),
+        legend.background = element_blank(),
+        legend.box.background = element_blank(),
+        legend.key = element_blank())
+
+m2<-lmer(mean~data.type2+(1|sp)+(1|study),data=speed_pw)
+check_model(m2)
+anova(m2)
+
+emmeans(m2, "data.type2")
+emmeans(m2, "data.type2")%>%pairs()
+
+#try without single "PTT & GPS" study
+m2a<-lmer(mean~data.type2+(1|sp)+(1|study),data=speed_pw%>%filter(study!="Thorne et al (2016)"))
+check_model(m2a)
+anova(m2a)
+
+emmeans(m2a, "data.type2")
+emmeans(m2a, "data.type2")%>%pairs()
+
+
+#Type III Analysis of Variance Table with Satterthwaite's method
+#           Sum Sq Mean Sq NumDF  DenDF F value  Pr(>F)  
+#data.type2  49.54   24.77     2 15.444  5.1599 0.01922 *
+#---
+#Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+#> 
+#> emmeans(m2a, "data.type2")
+# data.type2   emmean    SE   df lower.CL upper.CL
+# GPS            8.77 0.683 37.1     7.39    10.16
+# PTT            7.64 0.896 39.6     5.83     9.45
+# Vessel-based  12.29 1.221 17.2     9.72    14.86
+
+#Degrees-of-freedom method: kenward-roger 
+#Confidence level used: 0.95 
+#> emmeans(m2a, "data.type2")%>%pairs()
+# contrast             estimate   SE   df t.ratio p.value
+# GPS - PTT                1.14 1.02 45.1   1.108  0.5143
+# GPS - (Vessel-based)    -3.52 1.38 19.3  -2.556  0.0482
+# PTT - (Vessel-based)    -4.65 1.47 20.5  -3.156  0.0129
+
+#Degrees-of-freedom method: kenward-roger 
+#P value adjustment: tukey method for comparing a family of 3 estimates 
+
+r2_nakagawa(lmer(mean~data.type2+(1|sp)+(1|study),data=speed_pw%>%filter(study!="Thorne et al (2016)")))
+r2_nakagawa(lmer(mean~data.type2+(1|sp),data=speed_pw%>%filter(study!="Thorne et al (2016)")))
+
+
+# alternate summarised model. Not used
+speed_pw_sumr<-speed_pw%>%group_by(sp, study, data.type2)%>%summarise(mn_spd=mean(mean))
+m3<-lmer(mn_spd~data.type2+(1|sp)+(1|study),data=speed_pw_sumr%>%filter(study!="Thorne et al (2016)"))
+check_model(m3)
+anova(m3)
+
 
 # Test whether Lit review produces different NFI results from biologgers
 

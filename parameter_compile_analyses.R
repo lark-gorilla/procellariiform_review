@@ -10,6 +10,8 @@ library(ggrepel)
 library(meta)
 library(estmeansd)
 library(ggimage)
+library(Hmisc)
+library(lme4)
 
 
 rm(list=ls())
@@ -78,6 +80,114 @@ perc_height_out<-data.frame(varib="percRSZ", `Common name`=perc_height$`Common n
                    do.call("rbind", apply(perc_height, 1, FUN=n_conf)))
 
 ##Alternate PERC RSZ approach ##
+
+ph_df<-pivot_longer(data=perc_height[,c(1,2, 7:ncol(perc_height))],
+                    cols=`Reid et al (2023)`:`Johnston et al (2014)`, values_drop_na=T)
+ph_df<-cbind(ph_df, str_split_fixed(ph_df$value, "@", 3)%>%as.data.frame())
+ph_df$V2<-str_replace_all(ph_df$V2,c(L="0.33", M="0.66", H="1"))
+ph_df$V1<-as.numeric(ph_df$V1) # convert to prop
+ph_df$V2<-as.numeric(ph_df$V2)
+ph_df$V3<-as.numeric(ph_df$V3)
+
+flg<-read_xlsx("data/procellariiform_flight_groups.xlsx")
+ph_df<-left_join(ph_df, flg[,c(2,8)], by=join_by(`Common name`))
+
+ggplot(data=ph_df)+geom_jitter(aes(x=V3, y=V1))+geom_smooth(aes(x=V3, y=V1))+facet_wrap(~`Extended flight group`)
+
+#make weighted mean and SD summary per species for table
+ph_sumr<-ph_df%>%group_by(`Extended flight group`,`Common name`, V3)%>%summarise(wt_mn= wtd.mean(V1, weights=V2, normwt=TRUE),
+                                                                                 wt_sd= sqrt(wtd.var(V1, weights=V2, normwt=TRUE)))
+
+ph_sumr$mn_sd<-ifelse(is.na(ph_sumr$wt_sd),round(ph_sumr$wt_mn,1),
+                      paste(round(ph_sumr$wt_mn,1), round(ph_sumr$wt_sd,1), sep="±"))
+
+ph_sumr%>%select(-c(wt_mn, wt_sd))%>%pivot_wider(names_from='V3', values_from =c(mn_sd))
+
+#make flight group averages using binomial GLMM
+
+out_dat<-NULL
+for(i in unique(ph_df$`Extended flight group`))
+{
+d1<-ph_df[ph_df$`Extended flight group`==i,]
+
+for(j in unique(d1$V3))
+{
+  d2<-d1[d1$V3==j,]
+  
+  if(length(unique(d2$V1))>1){
+  
+    m1<-glmer(cbind(V1, 100-V1)~1+(1|`name`), family='binomial',
+              weights=V2, data=d2) 
+    
+    new_dat<-d2[1,]
+    new_dat$pred<-predict(m1, new_dat, type='link', re.form=NA) 
+    predmat <- model.matrix(terms(m1), data=new_dat) # need to put terms arguement not just model, RE carried over otherwise?
+    vcv <- vcov(m1)
+    ## then calculate the standard errors
+    semod <-  sqrt(diag(predmat%*%vcv%*%t(predmat))) #M: creates matrix and takes the diagonal
+    # then we can get the confidence intervals @ 95% confidence level
+    new_dat$ucl <- new_dat$pred + semod*1.96
+    new_dat$lcl <- new_dat$pred - semod*1.96
+    mm_sd<-sqrt(nrow(d2))*(plogis(new_dat$ucl)- plogis(new_dat$lcl))/3.92
+    mm_pred<-plogis(new_dat$pred)
+    
+    m2<-glm(cbind(V1, 100-V1)~1, family='binomial',
+              weights=V2, data=d2)
+    m2_pred<-predict(m2, new_dat, se.fit=T)
+    m_pred<-plogis(m2_pred$fit)
+    m_sd<-sqrt(nrow(d2))*(plogis(m2_pred$fit + m2_pred$se.fit*1.96)- plogis(m2_pred$fit - m2_pred$se.fit*1.96))/3.92
+      
+     wt_mn= wtd.mean(d2$V1, weights=d2$V2, normwt=TRUE)
+     wt_sd= sqrt(wtd.var(d2$V1, weights=d2$V2, normwt=TRUE))
+     
+     out_dat<-rbind(out_dat, 
+                    tibble(`Extended flight group`=i, V3=j, wt_mn=wt_mn, sd_mn=wt_sd, 
+                               glm_mn=m_pred, glm_sd=m_sd, glmer_mn=mm_pred, glmer_sd=mm_sd))
+    
+  }else{
+   next() 
+  }
+ print(i) 
+}
+}
+
+# ok lets just go with weighted mean approach for Flight groups also
+ggplot()+geom_point(data=ph_df, aes(x=`Common name`, y=V1, col=name, shape=factor(V2)))+
+  geom_errorbar(data=out_dat, aes(x='AV', ymin=wt_mn-sd_mn, ymax=wt_mn+sd_mn), col=1)+
+  geom_point(data=out_dat, aes(x='AV', y=wt_mn), col=1, shape=1)+
+geom_errorbar(data=out_dat, aes(x='AV', ymin=glm_mn*100-glm_sd*100, ymax=glm_mn*100+glm_sd*100), col=2)+
+  geom_point(data=out_dat, aes(x='AV', y=glm_mn*100), col=2, shape=1)+
+geom_errorbar(data=out_dat, aes(x='AV', ymin=glmer_mn*100-glmer_sd*100, ymax=glmer_mn*100+glmer_sd*100), col=3)+
+  geom_point(data=out_dat, aes(x='AV', y=glmer_mn*100), col=3, shape=1)+
+  facet_wrap(~`Extended flight group`+V3, scales='free')
+
+
+# Model results per flight group
+
+#ordered factor aqpproach to flexible
+#ph_df$V3_ord<-factor(ph_df$V3, ordered = T)          
+#m1<-glmer(cbind(V1, 100-V1)~V3_ord+(1+V3_ord|`Extended flight group`) , family='binomial',
+#          control = glmerControl(optimizer ="bobyqa"),weights=V2, data=ph_df)
+
+m1<-glmer(cbind(V1, 100-V1)~V3+(1+V3|`Extended flight group`) + (1|name), family='binomial',
+          control = glmerControl(optimizer ="bobyqa"),weights=V2, data=ph_df)
+
+#%>%filter(`Extended flight group`%in%names(which(table(ph_df$`Extended flight group`)>5))))
+
+nd<-expand.grid(`Extended flight group`=unique(ph_df$`Extended flight group`), V3=c(10, 20, 30))
+
+nd$pred<-predict(m1, newdata=nd, type='response', re.form=~(1+V3|`Extended flight group`))
+
+ggplot(data=nd)+geom_line(aes(x=V3, y=pred, colour=`Extended flight group`))+
+  geom_point(data=ph_df, aes(x=V3, y=V1/100))+facet_wrap(~`Extended flight group`)
+
+fit_dat<-cbind(ph_df, fitted(m1))
+
+ggplot(data=fit_dat)+geom_line(aes(x=V3, y=`fitted(m1)`, colour=`Extended flight group`))+
+  geom_point(data=ph_df, aes(x=V3, y=V1/100))+facet_wrap(~`Extended flight group`)
+
+#DOES I MAKE SENSE??
+
   
 ## FLIGHT HEIGHT ##
 

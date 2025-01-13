@@ -96,17 +96,19 @@ ggplot(data=ph_df)+geom_jitter(aes(x=V3, y=V1))+geom_smooth(aes(x=V3, y=V1))+fac
 
 #make weighted mean and SD summary per species for table
 ph_sumr<-ph_df%>%group_by(`Extended flight group`,`Common name`, V3)%>%summarise(wt_mn= wtd.mean(V1, weights=V2, normwt=TRUE),
-                                                                                 wt_sd= sqrt(wtd.var(V1, weights=V2, normwt=TRUE)))
+                                                                                 min1= min(V1),
+                                                                                 max1= max(V1))
 #make weighted mean and SD summary per FG for table
 ph_sumr_fg<-ph_df%>%mutate(`Common name`="XX_FG")%>%
   group_by(`Extended flight group`, `Common name`, V3)%>%summarise(wt_mn= wtd.mean(V1, weights=V2, normwt=TRUE),
-                                                                                 wt_sd= sqrt(wtd.var(V1, weights=V2, normwt=TRUE)))
+                                                                   min1= min(V1),
+                                                                   max1= max(V1))
 # bind sp and Fg together
 ph_sumr<-rbind(ph_sumr, ph_sumr_fg)
-ph_sumr$mn_sd<-ifelse(is.na(ph_sumr$wt_sd),round(ph_sumr$wt_mn,1),
-                      paste(round(ph_sumr$wt_mn,1), round(ph_sumr$wt_sd,1), sep="±"))
+ph_sumr$mn_minmax<-ifelse(ph_sumr$min1==ph_sumr$max1, round(ph_sumr$wt_mn,1),
+                      paste0(round(ph_sumr$wt_mn,1), "(", round(ph_sumr$min1,1),"-",round(ph_sumr$max1,1), ")" ))
 
-ph_sumr_out<-ph_sumr%>%select(-c(wt_mn, wt_sd))%>%pivot_wider(names_from='V3', values_from =c(mn_sd))%>%
+ph_sumr_out<-ph_sumr%>%select(-c(wt_mn, min1, max1))%>%pivot_wider(names_from='V3', values_from =c(mn_minmax))%>%
   arrange(`Extended flight group`,`Common name`)
 
 #write out and manually sort rows to slot into main results table

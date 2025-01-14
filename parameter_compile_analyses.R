@@ -1143,6 +1143,11 @@ flg_mn<-fg_metaz%>%pivot_wider(id_cols=c(`Extended flight group`), names_from=va
                                  values_from=c(mean, LCI, UCI, sd, n, n_studies, stage, region), names_vary = "slowest")%>%
   arrange(`Extended flight group`)
 
+# make taxonomic order to match table
+flg_order<-c("Great albatrosses", "Sooty albatrosses", "Small albatrosses", "Giant petrels", "Fulmars", "Procellaria petrels", 
+             "Large gadfly petrels", "Small gadfly petrels", "Calonectris shearwaters", "Surface feeding shearwaters", "Diving shearwaters", 
+             "Manx type shearwaters", "Prions", "Diving petrels", "Oceanodroma", "Frigate petrels", "Oceanites")
+
 
 # make plots for %RSZ, speed and NFI
 
@@ -1157,8 +1162,8 @@ flg_mn$fig<-NA
 flg_mn$y_icon<-NA
 flg_mn[flg_mn$`Extended flight group`=="Great albatrosses",]$fig<-paste("temp/moon-2287.png")
 flg_mn[flg_mn$`Extended flight group`=="Oceanites",]$fig<-paste("temp/sun-3335.png")
-flg_mn[flg_mn$`Extended flight group`=="Great albatrosses",]$y_icon=0.6
-flg_mn[flg_mn$`Extended flight group`=="Oceanites",]$y_icon=-0.6
+flg_mn[flg_mn$`Extended flight group`=="Great albatrosses",]$y_icon=0.55
+flg_mn[flg_mn$`Extended flight group`=="Oceanites",]$y_icon=-0.55
 
 nfi_p<-ggplot()+
   geom_hline(yintercept=0, size=0.5)+
@@ -1171,10 +1176,10 @@ nfi_p<-ggplot()+
   scale_y_continuous(breaks=seq(-1, 1, 0.2), limits=c(-1, 1), minor_breaks = NULL)+
   geom_text(data=data.frame(x=flg_order[1], y=0.9), aes(x=x, y=y, label="b)"), size=8, nudge_x=-0.25)+
   labs(y="Night Flight Index")+
-  scale_x_discrete(guide = guide_axis(n.dodge = 2))+theme_bw()+
+  scale_x_discrete(guide = guide_axis(n.dodge = 2), drop=F)+theme_bw()+
   theme(axis.text=element_text(size=10),
         axis.title=element_text(size=10,face="bold"),
-        axis.title.x = element_blank())
+        axis.title.x = element_blank(), axis.text.x = element_blank())
 
 #Species plot for appendix
 #order by decreasing risk
@@ -1244,10 +1249,10 @@ speed_p<-ggplot()+
                      labels = c( "Maximum speed","Flight speed", "Trip speed"))+
   theme(axis.text=element_text(size=10),
         axis.title=element_text(size=10,face="bold"),
-        axis.title.x = element_blank(), legend.position=c(.8,.74),
+        axis.title.x = element_blank(), legend.position=c(.9,0.70),
         legend.background = element_blank(),
         legend.box.background = element_blank(),
-        legend.key = element_blank())
+        legend.key = element_blank(), axis.text.x = element_blank())
 
 #Species plot for appendix --Speed
 #order by decreasing risk
@@ -1376,19 +1381,21 @@ height_ready$X3<-factor(height_ready$X3)
 
 rsz_p<-ggplot()+
   geom_point(data=height_ready%>%filter(varib=="percRSZ"& !is.na(X1)), aes(x=`Extended flight group`, y=as.numeric(X1), colour=X3 ),
-             position = position_dodge(width = 0.4), alpha=0.4, size=2)+
+             position = position_jitterdodge(jitter.width = 0.3,jitter.height=0, dodge.width=0.4), alpha=0.4, size=2)+
   
-  geom_point(data=ph_sumr_fg, aes(x=`Extended flight group`, y=wt_mn, colour=X3), size=4,position = position_dodge(width = 0.4), shape=1)+
+  geom_point(data=ph_sumr_fg, aes(x=`Extended flight group`, y=wt_mn, colour=X3), size=4,
+             position = position_dodge(width = 0.4), shape=1)+
   labs(y="Time in Rotor Swept Zone (%)")+
   scale_color_manual(name = "Airgap (m)",
                      breaks = c( '10', '20', '30') ,
                      values = c( "10" = "darkred","20" = "orange",  "30" = "blue" ),
                      labels = c( "10", "20", "30"))+
-  scale_x_discrete(guide = guide_axis(n.dodge = 2))+theme_bw()+
+  scale_x_discrete()+theme_bw()+
   geom_text(data=data.frame(x=flg_order[1], y=48), aes(x=x, y=y, label="c)"), size=8, nudge_x=-0.25)+
   theme(axis.text=element_text(size=10),
+        axis.text.x=element_text(size=10,angle = 45, vjust = 1, hjust=1),
         axis.title=element_text(size=10,face="bold"),
-        axis.title.x = element_blank(), legend.position=c(.9,0.74),
+        axis.title.x = element_blank(), legend.position=c(.9,0.70),
         legend.background = element_blank(),
         legend.box.background = element_blank(),
         legend.key = element_blank())

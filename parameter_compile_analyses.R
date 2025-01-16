@@ -1455,14 +1455,16 @@ ggplot()+
                                                           colour=ref ),linetype="dashed", position=position_nudge(x = fh_fig%>%filter(median=='y'&!is.na(ymin))%>%pull(nudgy)))+
  
   labs(y="Mean flight height (m)", colour='Study')+scale_x_discrete(drop=F)+
+  guides(colour = guide_legend( override.aes = list(shape = c(17, 16,16,17,16,16,16),
+    linetype = c("blank", "dashed", "solid", "dashed", "solid", "solid","solid"))))+
   theme_bw()+
   theme(axis.text=element_text(size=10),
         axis.title=element_text(size=10,face="bold"),
-        axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1),
+        axis.text.x=element_text(size=10,angle = 45, vjust = 1, hjust=1),
         axis.title.x = element_blank(), legend.position=c(.87,0.75),
         legend.background = element_blank(),
         legend.box.background = element_blank(),
-        legend.key = element_blank())
+        legend.key = element_blank(),plot.margin = margin(10, 10, 10, 35))
 
 # Main Fig 3
 library(scatterpie)

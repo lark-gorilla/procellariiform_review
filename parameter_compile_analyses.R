@@ -1426,22 +1426,40 @@ speed_p_appen|nfi_p_appen
 
 # make Main fig 2 - flight height
 
-piv_height<-piv_height%>%filter(!is.na(wt_ave_height))
-height_ready<-height_ready%>%filter(!is.na(wt_ave_height))
-piv_height$Common.name<-factor(piv_height$Common.name, levels=piv_height[order(piv_height$wt_ave_height, decreasing =T),]$Common.name)
-height_ready$Common.name<-factor(height_ready$Common.name, levels=levels( piv_height$Common.name))
-height_ready$X3<-factor(height_ready$X3, levels=c('H', 'M', 'L'))
+fh_fig<-read_xlsx("analyses/RSZ_HML_and_flight_height_raw.xlsx", sheet='flight_height_for_fig')
+
+fh_fig$sp<-factor(fh_fig$sp, levels=c("Northern Royal Albatross",  "Wandering Albatross", "Laysan Albatross" ,"Atlantic Yellow-nosed Albatross","Grey-headed Albatross" ,
+"Black-browed Albatross",  "Northern Giant-petrel", "Southern Giant-petrel","Southern Fulmar" , "Cape Petrel" ,
+"Scopoli's Shearwater" , "Cory's Shearwater" ,  
+"Wedge-tailed Shearwater"  ,  "Great Shearwater"  , "Sooty Shearwater", "Manx Shearwater" , "Balearic Shearwater",
+"Antarctic Prion" ,  "European Storm-petrel"  , "Leach's Storm-petrel" ,"Wilson's Storm-petrel"))   
 
 ggplot()+
-  geom_point(data=height_ready%>%filter(varib=="height"& !is.na(X1)), aes(x=Common.name, y=as.numeric(X1), 
-            colour=paste0(study, " (", X2, ")") ), size=3)+
-  geom_point(data=piv_height%>%filter(!is.na(wt_ave_height)), aes(x=Common.name, y=wt_ave_height), size=5, colour='black', shape=1)+
-  labs(y="Mean flight height (m)", colour='Study (quality)')+
+  geom_point(data=fh_fig%>%filter(is.na(median)&!is.na(mean)), aes(x=sp, y=mean, 
+            colour=ref ), size=3, position=position_nudge(x = fh_fig%>%filter(is.na(median)&!is.na(mean))%>%pull(nudgy)))+
+  geom_errorbar(data=fh_fig%>%filter(is.na(median)&!is.na(mean)), aes(x=sp, ymin=mean-sd, ymax=mean+sd, 
+                                                    colour=ref ), width=0.3, position=position_nudge(x = fh_fig%>%filter(is.na(median)&!is.na(mean))%>%pull(nudgy)))+
+  geom_point(data=fh_fig%>%filter(median=='y'&!is.na(mean)), aes(x=sp, y=mean, 
+                                                      colour=ref ), size=3, shape=17, positio=position_nudge(x = fh_fig%>%filter(median=='y'&!is.na(mean))%>%pull(nudgy)))+
+  geom_point(data=fh_fig%>%filter(is.na(median)&!is.na(ymax)), aes(x=sp, y=ymin, 
+                                                      colour=ref ), size=3, position=position_nudge(x = fh_fig%>%filter(is.na(median)&!is.na(ymax))%>%pull(nudgy)))+
+  geom_point(data=fh_fig%>%filter(is.na(median)&!is.na(ymax)), aes(x=sp, y=ymax, 
+                                                      colour=ref ), size=3, position=position_nudge(x = fh_fig%>%filter(is.na(median)&!is.na(ymax))%>%pull(nudgy)))+
+  geom_linerange(data=fh_fig%>%filter(is.na(median)&!is.na(ymax)), aes(x=sp, ymin=ymin, ymax=ymax, 
+                                                         colour=ref ),linetype="dashed", position=position_nudge(x = fh_fig%>%filter(is.na(median)&!is.na(ymax))%>%pull(nudgy)))+
+  geom_point(data=fh_fig%>%filter(median=='y'&!is.na(ymin)), aes(x=sp, y=ymin, 
+                                                      colour=ref), size=3, shape=17,position=position_nudge(x = fh_fig%>%filter(median=='y'&!is.na(ymin))%>%pull(nudgy)))+
+  geom_point(data=fh_fig%>%filter(median=='y'&!is.na(ymin)), aes(x=sp, y=ymax, 
+                                                      colour=ref ), size=3, shape=17,position=position_nudge(x = fh_fig%>%filter(median=='y'&!is.na(ymin))%>%pull(nudgy)))+
+  geom_linerange(data=fh_fig%>%filter(median=='y'&!is.na(ymin)), aes(x=sp, ymin=ymin, ymax=ymax, 
+                                                          colour=ref ),linetype="dashed", position=position_nudge(x = fh_fig%>%filter(median=='y'&!is.na(ymin))%>%pull(nudgy)))+
+ 
+  labs(y="Mean flight height (m)", colour='Study')+scale_x_discrete(drop=F)+
   theme_bw()+
   theme(axis.text=element_text(size=10),
         axis.title=element_text(size=10,face="bold"),
         axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1),
-        axis.title.x = element_blank(), legend.position=c(.87,0.68),
+        axis.title.x = element_blank(), legend.position=c(.87,0.75),
         legend.background = element_blank(),
         legend.box.background = element_blank(),
         legend.key = element_blank())

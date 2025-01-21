@@ -162,11 +162,28 @@ ht_res_out<-left_join(ht_res_out,
                       collapse=", "), region=paste(unique(`marine region`), collapse=", ")),
                       by=c("varib", "Common.name"))
 
+# updated RSZ only
+# count HML per airgap and summarise
+ph_df$V2_temp<-str_replace_all(ph_df$V2,c("0.33"="L", "0.66"="M", "1"="H"))
+ph_df_HMLcount<-ph_df%>%group_by(`Common name`, V3, V2_temp)%>%
+  summarise(n())%>%ungroup()%>%group_by(`Common name`, V3)%>%summarise(out1=paste0(V2_temp, `n()`, collapse=","))
+
+ph_df_HMLcount$V3<-as.character(ph_df_HMLcount$V3)
+ph_sumr$V3<-as.character(ph_sumr$V3)
+
+ph_sumr<-left_join(ph_sumr, ph_df_HMLcount, b=join_by(`Common name`, "V3")) # join in HML summaries
+
+rsz_res_out<-left_join(ph_sumr, 
+                      app_height_out%>%group_by(Common.name, X3)%>%summarise(stage=paste(unique(stage),
+                      collapse=", "), region=paste(unique(`marine region`), collapse=", ")),
+                      by=c(`Common name`="Common.name", "V3"="X3"))
+
 #anecdotal Max height, added manually
 
 ## WRITE OUT TABLES ##
 #write_xlsx(app_height_out, "analyses/height_ready.xlsx")
 #write_xlsx(ht_res_out, "outputs/height_results.xlsx")
+#write_xlsx(rsz_res_out, "outputs/appen_rsz_results.xlsx")
 
 #### ***  *** ####
 
@@ -1457,7 +1474,7 @@ ggplot()+
   labs(y="Mean flight height (m)", colour='Study')+scale_x_discrete(drop=F)+
   guides(colour = guide_legend( override.aes = list(shape = c(17, 16,16,17,16,16,16),
     linetype = c("blank", "dashed", "solid", "dashed", "solid", "solid","solid"))))+
-  theme_bw()+
+  theme_bw()+scale_y_continuous(limits=c(-1.1, 14), breaks=seq(0, 14, 2))+
   theme(axis.text=element_text(size=10),
         axis.title=element_text(size=10,face="bold"),
         axis.text.x=element_text(size=10,angle = 45, vjust = 1, hjust=1),

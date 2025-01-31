@@ -1537,9 +1537,6 @@ ggplot(data=flg_mn)+
 #### ---- Stats tests  ---- ####
 
 # Stats and RSZ turbine height appendix fig 
-# Species plot to present reasoning for pooling RSZ heights: basically lots of error. Could test with stats if needed
-# runs from above code to make main fig 1
-
 # test to see if %time in RSZ increases with lower minimum tip height
 library(lme4)
 library(performance)
@@ -1548,36 +1545,36 @@ library(lmerTest)
 library(emmeans)
 
 height_ready<-read_xlsx("analyses/height_ready.xlsx")
+flg<-read_xlsx("data/procellariiform_flight_groups.xlsx")
 height_ready<-left_join(height_ready, flg[,c(2,8)], by=join_by("Common.name"==`Common name`))
-height_ready$X3_ord<-size_fct <- factor(height_ready$X3, levels = c(10,20,30), ordered = T) 
+height_ready$X3_ord<-size_fct <- factor(height_ready$X3, levels = c(10,20,30), ordered = T)
+height_ready<-height_ready%>%filter(varib=='percRSZ')
 
-#first models excluding small studies < 3 species
-m1<-lmer(as.numeric(X1)~as.numeric(X3)+(1|study)+(1|`Extended flight group`), data=height_ready%>%filter(study%in%c(names(which(table(height_ready$study)>2)))))
-check_model(m1)
+#pairwise analyses between only species with RSZ in 2 or more airgaps
+pairwise_sp<-height_ready%>%group_by(Common.name, X3)%>%summarise(n=n())%>%ungroup()%>%group_by(Common.name)%>%
+  summarise(n=n())%>%filter(n>1)%>%pull(Common.name)
 
-m2<-glmer(cbind(ceiling(as.numeric(X1)), 100-ceiling(as.numeric(X1)))~as.numeric(X3)+(1|study)+(1|`Extended flight group`),
-          data=height_ready%>%filter(study%in%c(names(which(table(height_ready$study)>2)))), family='binomial')
-
-#refit with full dataset (all studies)
-
-m3<-lmer(as.numeric(X1)~as.numeric(X3)+(1|study)+(1|`Extended flight group`), data=height_ready)
+height_pw<-height_ready%>%filter(Common.name%in%pairwise_sp)
 
 m4<-glmer(cbind(ceiling(as.numeric(X1)), 100-ceiling(as.numeric(X1)))~as.numeric(X3)+(1|study)+(1|`Extended flight group`),
-          data=height_ready, family='binomial')
+          data=height_pw, family='binomial',control = glmerControl(optimizer ="bobyqa"))
+m5<-glmer(cbind(ceiling(as.numeric(X1)), 100-ceiling(as.numeric(X1)))~as.numeric(X3)+(1|study/`Extended flight group`),
+          data=height_pw, family='binomial',control = glmerControl(optimizer ="bobyqa"))
+AIC(m5, m4) # m5 better
 
-m5<-lmer(as.numeric(X1)~X3_ord+(1|study)+(1|`Extended flight group`), data=height_ready)
+res <- simulateResiduals(m3, plot = T)
 
-resid_compare(list(m1, m3, m2,m4, m5))
+library(DHARMa)
+ss <- simulateResiduals(m5); plot(ss) #ok
 
-#whichever model used, result is NS
-anova(m1)
-anova(m3) # use this
-#Type III Analysis of Variance Table with Satterthwaite's method
-#               Sum Sq Mean Sq NumDF  DenDF F value Pr(>F)
-#as.numeric(X3) 11.761  11.761     1 6.6688   0.253 0.6312
 library(car)
-Anova(m2)
-Anova(m4)
+Anova(m5)
+#Analysis of Deviance Table (Type II Wald chisquare tests)
+
+#Response: cbind(ceiling(as.numeric(X1)), 100 - ceiling(as.numeric(X1)))
+#Chisq Df Pr(>Chisq)
+#as.numeric(X3) 0.5884  1      0.443
+
 
 # Test flight speeds differ between trip, speed and max
 speed_meta_out<-read_xlsx("outputs/speed_results.xlsx")
@@ -1706,13 +1703,25 @@ nfi1<-read_xlsx("analyses/NFI_ready.xlsx")
 nfi1$data.group<-"Biologger"
 nfi1[nfi1$data.type=="Literature review",]$data.group<-"Literature review"
 
-#nfi2<-nfi1[nfi1$sp%in%nfi1[nfi1$data.type=='Literature review',]$sp,] # pretty much identical result if we exclude biologger only species
+ggplot(data=nfi_pw)+geom_boxplot(aes(y=mean, x=study, colour=data.group))+facet_wrap(~sp, scales='free')
 
-m1<-lmer(mean~data.group+(1|sp)+(1|study),data=nfi1)
+pairwise_sp<-nfi1%>%group_by(sp, data.group)%>%summarise(n=n())%>%ungroup()%>%group_by(sp)%>%summarise(n=n())%>%filter(n>1)%>%pull(sp)
+
+length(pairwise_sp)
+
+nfi_pw<-nfi1%>%filter(sp%in%pairwise_sp)
+
+
+m1<-lmer(mean~data.group+(1|sp)+(1|study),data=nfi_pw)
 check_model(m1)
 anova(m1)
 #Type III Analysis of Variance Table with Satterthwaite's method
-#            Sum Sq Mean Sq NumDF  DenDF F value Pr(>F)
-#data.group 0.10342 0.10342     1 11.504  1.7486 0.2117
+#             Sum Sq  Mean Sq NumDF DenDF F value Pr(>F)
+#data.group 0.047636 0.047636     1 4.951  0.9299 0.3796
+
+#> r2_nakagawa(m1)
+# R2 for Mixed Models
+#Conditional R2: 0.406
+#Marginal R2: 0.048
 
 #### ---- Stats End  ---- ####
